@@ -1,0 +1,295 @@
+@import "tailwindcss";
+
+/* ================================================================
+   GLIMMORA AEGIS -- NAVY | Design System Tokens
+   ================================================================ */
+
+:root {
+  /* Core palette - LIGHT MODE REDESIGN */
+  --aegis-void:        #ffffff;
+  --aegis-abyss:       #f8fafc;
+  --aegis-deep-navy:   #f1f5f9;
+  --aegis-navy:        #e2e8f0;
+  --aegis-steel:       #cbd5e1;
+  --aegis-gunmetal:    #94a3b8;
+  --aegis-slate:       #64748b;
+  --aegis-mist:        #475569;
+  --aegis-cloud:       #1e293b;
+  --aegis-white:       #0f172a; /* Repurposed as Primary Text */
+
+  /* Accent */
+  --aegis-cyan:        #0ea5e9;
+  --aegis-cyan-glow:   rgba(14, 165, 233, 0.15);
+  --aegis-cyan-deep:   #0369a1;
+  --aegis-blue:        #2563eb;
+  --aegis-electric:    #3b82f6;
+  --aegis-gold:        #d97706;
+  --aegis-amber:       #b45309;
+  --aegis-red:         #dc2626;
+  --aegis-red-glow:    rgba(220, 38, 38, 0.1);
+  --aegis-green:       #16a34a;
+  --aegis-green-glow:  rgba(22, 163, 74, 0.1);
+  --aegis-purple:      #7c3aed;
+  --aegis-orange:      #ea580c;
+
+  /* Force colors */
+  --force-blue:   #2563eb;
+  --force-red:    #dc2626;
+  --force-green:  #16a34a;
+  --force-white:  #0f172a;
+  --force-yellow: #ca8a04;
+
+  /* Fonts */
+  --font-display: 'Orbitron', system-ui, sans-serif;
+  --font-heading: 'Rajdhani', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+  --font-data:    'Space Mono', monospace;
+}
+
+@theme inline {
+  --color-background: var(--aegis-void);
+  --color-foreground: var(--aegis-cloud);
+
+  --color-aegis-void:       var(--aegis-void);
+  --color-aegis-abyss:      var(--aegis-abyss);
+  --color-aegis-deep-navy:  var(--aegis-deep-navy);
+  --color-aegis-navy:       var(--aegis-navy);
+  --color-aegis-steel:      var(--aegis-steel);
+  --color-aegis-gunmetal:   var(--aegis-gunmetal);
+  --color-aegis-slate:      var(--aegis-slate);
+  --color-aegis-mist:       var(--aegis-mist);
+  --color-aegis-cloud:      var(--aegis-cloud);
+  --color-aegis-white:      var(--aegis-white);
+  --color-aegis-cyan:       var(--aegis-cyan);
+  --color-aegis-cyan-deep:  var(--aegis-cyan-deep);
+  --color-aegis-blue:       var(--aegis-blue);
+  --color-aegis-electric:   var(--aegis-electric);
+  --color-aegis-gold:       var(--aegis-gold);
+  --color-aegis-amber:      var(--aegis-amber);
+  --color-aegis-red:        var(--aegis-red);
+  --color-aegis-green:      var(--aegis-green);
+  --color-aegis-purple:     var(--aegis-purple);
+  --color-aegis-orange:     var(--aegis-orange);
+
+  --font-sans:    var(--font-body);
+  --font-display: var(--font-display);
+  --font-heading: var(--font-heading);
+  --font-mono:    var(--font-mono);
+}
+
+/* ================================================================
+   Global Styles
+   ================================================================ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--aegis-gunmetal) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--aegis-navy);
+  border-radius: 3px;
+}
+
+body {
+  background: var(--aegis-void);
+  color: var(--aegis-cloud);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--aegis-cyan-glow);
+  color: var(--aegis-white);
+}
+
+/* ================================================================
+   Tactical Grid Background
+   ================================================================ */
+
+.tactical-grid {
+  background-image:
+    linear-gradient(rgba(14, 165, 233, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.tactical-grid-dense {
+  background-image:
+    linear-gradient(rgba(14, 165, 233, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.06) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+/* ================================================================
+   Glass Morphism
+   ================================================================ */
+
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.glass-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.9));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+}
+
+.glass-card:hover {
+  border-color: rgba(14, 165, 233, 0.2);
+  box-shadow: 0 12px 48px rgba(15, 23, 42, 0.08), 0 0 20px rgba(14, 165, 233, 0.04);
+}
+
+.glass-shine {
+  position: relative;
+}
+.glass-shine::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* ================================================================
+   Glow Effects
+   ================================================================ */
+
+.glow-cyan {
+  box-shadow: 0 0 8px var(--aegis-cyan), 0 0 24px rgba(14, 165, 233, 0.2);
+}
+
+.glow-pulse {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.glow-border {
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  box-shadow: inset 0 0 12px rgba(14, 165, 233, 0.02), 0 0 12px rgba(14, 165, 233, 0.04);
+}
+
+.text-glow {
+  text-shadow: 0 0 10px rgba(14, 165, 233, 0.2), 0 0 40px rgba(14, 165, 233, 0.1);
+}
+
+/* ================================================================
+   Animations
+   ================================================================ */
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(14, 165, 233, 0.2); }
+  50%      { box-shadow: 0 0 24px rgba(14, 165, 233, 0.3), 0 0 60px rgba(14, 165, 233, 0.08); }
+}
+
+@keyframes radar-sweep {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes grid-scan {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  50%  { opacity: 0.4; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-10px); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes ping-ring {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes typewriter-cursor {
+  0%, 100% { border-color: var(--aegis-cyan); }
+  50%      { border-color: transparent; }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-radar {
+  animation: radar-sweep 4s linear infinite;
+}
+
+.animate-grid-scan {
+  animation: grid-scan 8s linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 3s linear infinite;
+  background: linear-gradient(90deg, transparent 30%, rgba(14, 165, 233, 0.04) 50%, transparent 70%);
+  background-size: 200% 100%;
+}
+
+/* ================================================================
+   Classification Banner
+   ================================================================ */
+
+.classification-banner {
+  background: #0f172a;
+  color: #fbbf24;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+  z-index: 9999;
+  position: relative;
+}
+
+/* ================================================================
+   Radar Component
+   ================================================================ */
+
+.radar-container {
+  position: relative;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.03) 0%, transparent 70%);
+  border: 1px solid rgba(14, 165, 233, 0.15);
+}
+
+.radar-sweep-line {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 50%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--aegis-cyan), transparent);
+  transform-origin: left center;
+  animation: radar-sweep 4s linear infinite;
+}
+
+.radar-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(14, 165, 233, 0.1);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
