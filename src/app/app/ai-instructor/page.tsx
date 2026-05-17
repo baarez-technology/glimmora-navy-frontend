@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
 import { staggerContainer, fadeInUp } from "@/animations/variants";
 import { ai } from "@/lib/api/endpoints";
 import { useApi, useMutation } from "@/lib/api/hooks";
@@ -236,7 +237,7 @@ export default function AIInstructorPage() {
                       <div className="text-[10px] font-heading text-aegis-slate tracking-wider uppercase mb-1">
                         {msg.role === "user" ? "Instructor" : "AEGIS AI"}
                       </div>
-                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                      <MarkdownRenderer content={msg.content} />
                     </div>
                   </div>
                 ))}
