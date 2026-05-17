@@ -1,28 +1,96 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Radar, Play, Settings, Sliders, Activity } from "lucide-react";
+import {
+  Radar,
+  Play,
+  Sliders,
+  Activity,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { AegisButton } from "@/components/ui/aegis-button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { staggerContainer, fadeInUp } from "@/animations/variants";
+import { scenarios, sessions, analytics } from "@/lib/api/endpoints";
+import { useApi, useMutation } from "@/lib/api/hooks";
+import { useUserStore } from "@/stores/user-store";
+import type { Scenario, TrainingSession } from "@/lib/api/types";
 
-const emergentEvents = [
-  { time: "14:23", event: "Leader-loss recovery observed -- swarm reassigned command to node #7", type: "emergent" },
-  { time: "14:22", event: "Target reassignment cascade -- 4 entities re-tasked to secondary objective", type: "adaptation" },
-  { time: "14:20", event: "Congestion detected at waypoint Alpha -- swarm auto-dispersed", type: "congestion" },
-  { time: "14:18", event: "Communication degradation simulated -- mesh network reformation", type: "degradation" },
-  { time: "14:15", event: "Formation shift: V-shape to line-abreast for area search", type: "formation" },
-];
+const DOMAIN = "swarm_ai";
 
-const typeColors: Record<string, string> = {
-  emergent: "text-aegis-purple",
-  adaptation: "text-aegis-cyan",
-  congestion: "text-aegis-amber",
-  degradation: "text-aegis-red",
-  formation: "text-aegis-green",
-};
+function shortId(id: string): string {
+  return id.length > 8 ? id.slice(0, 8).toUpperCase() : id.toUpperCase();
+}
+
+function LoadingInline({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 py-4 text-aegis-mist">
+      <Loader2 className="w-4 h-4 animate-spin text-aegis-cyan" />
+      <span className="text-xs font-heading tracking-wider uppercase">
+        {label}&hellip;
+      </span>
+    </div>
+  );
+}
+
+function ErrorInline({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex items-start gap-3 py-3">
+      <AlertTriangle className="w-4 h-4 text-aegis-red shrink-0 mt-0.5" />
+      <div className="flex-1">
+        <p className="text-xs text-aegis-cloud leading-relaxed">{message}</p>
+        <button
+          onClick={onRetry}
+          className="text-[10px] font-heading text-aegis-cyan mt-2 tracking-wider uppercase cursor-pointer"
+        >
+          Retry &rarr;
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function SwarmAIPage() {
+  const user = useUserStore((s) => s.user);
+  const router = useRouter();
+
+  const scenariosState = useApi(
+    () => scenarios.list({ domain: DOMAIN, page_size: 50 }),
+    []
+  );
+  const sessionsState = useApi(
+    () =>
+      user
+        ? sessions.list({ trainee_id: user.id, page_size: 10 })
+        : Promise.resolve(null),
+    [user?.id],
+    { skip: !user }
+  );
+  const weakState = useApi(() => analytics.domain(DOMAIN), [], {
+    skip: !user || user.role === "trainee",
+  });
+
+  const { run: startScenario, loading: starting } = useMutation(scenarios.start);
+
+  const onStart = async (scenarioId: string) => {
+    if (!user) return;
+    const res = await startScenario(scenarioId, { trainee_id: user.id });
+    if (res) router.push(`/app/sessions/${res.session_id}`);
+  };
+
+  const onLaunch = async () => {
+    const first = scenariosState.data?.items?.[0];
+    if (first) await onStart(first.id);
+  };
+
+  const allScenarios: Scenario[] = scenariosState.data?.items ?? [];
+  const recentSessions: TrainingSession[] = (sessionsState.data?.items ?? []).filter(
+    (s) => allScenarios.some((sc) => sc.id === s.scenario_id)
+  );
+
   return (
     <motion.div
       variants={staggerContainer}
@@ -45,7 +113,13 @@ export default function SwarmAIPage() {
             </p>
           </div>
         </div>
-        <AegisButton size="sm" icon={<Play className="w-4 h-4" />}>
+        <AegisButton
+          size="sm"
+          icon={<Play className="w-4 h-4" />}
+          disabled={!user || starting || allScenarios.length === 0}
+          loading={starting}
+          onClick={onLaunch}
+        >
           Launch Simulation
         </AegisButton>
       </motion.div>
@@ -131,31 +205,143 @@ export default function SwarmAIPage() {
           </div>
         </GlassPanel>
 
-        {/* Emergent Behavior Log */}
+        {/* Available Scenarios */}
         <GlassPanel className="lg:col-span-2">
           <div className="flex items-center gap-2 mb-5">
             <Activity className="w-4 h-4 text-aegis-purple" />
             <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist">
-              Emergent Behavior Log
+              Swarm Scenario Library
             </h3>
           </div>
-          <div className="space-y-4">
-            {emergentEvents.map((evt, i) => (
-              <div key={i} className="flex items-start gap-4 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <span className="text-[10px] font-mono text-aegis-slate shrink-0 mt-0.5 w-10">
-                  {evt.time}
-                </span>
-                <div className="flex-1">
-                  <p className={`text-sm leading-relaxed ${typeColors[evt.type]}`}>
-                    {evt.event}
-                  </p>
-                  <span className="inline-block mt-1 px-2 py-0.5 rounded bg-white/[0.04] text-[9px] font-heading font-bold text-aegis-slate tracking-wider uppercase">
-                    {evt.type}
-                  </span>
+          {scenariosState.loading ? (
+            <LoadingInline label="Loading scenarios" />
+          ) : scenariosState.error ? (
+            <ErrorInline
+              message={scenariosState.error}
+              onRetry={scenariosState.refetch}
+            />
+          ) : allScenarios.length === 0 ? (
+            <p className="text-xs text-aegis-slate py-3">
+              No swarm AI scenarios available yet.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {allScenarios.slice(0, 6).map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-aegis-cloud truncate">
+                      {s.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <StatusBadge
+                        label={s.difficulty.toUpperCase()}
+                        variant="neutral"
+                      />
+                      <span className="text-[10px] font-mono text-aegis-slate">
+                        {s.estimated_duration_minutes} min
+                      </span>
+                    </div>
+                  </div>
+                  <AegisButton
+                    size="sm"
+                    icon={<Play className="w-3.5 h-3.5" />}
+                    disabled={!user || starting}
+                    onClick={() => onStart(s.id)}
+                  >
+                    Start
+                  </AegisButton>
                 </div>
+              ))}
+            </div>
+          )}
+        </GlassPanel>
+      </div>
+
+      {/* Recent sessions + weakness */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <GlassPanel>
+          <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist mb-5">
+            Your Recent Swarm Sessions
+          </h3>
+          {!user ? (
+            <p className="text-xs text-aegis-slate py-3">Sign in to see your sessions.</p>
+          ) : sessionsState.loading ? (
+            <LoadingInline label="Loading sessions" />
+          ) : sessionsState.error ? (
+            <ErrorInline
+              message={sessionsState.error}
+              onRetry={sessionsState.refetch}
+            />
+          ) : recentSessions.length === 0 ? (
+            <p className="text-xs text-aegis-slate py-3">
+              No swarm AI sessions on record.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {recentSessions.slice(0, 5).map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-white/[0.02] border border-white/[0.04]"
+                >
+                  <p className="text-xs font-mono font-bold text-aegis-cyan">
+                    {shortId(s.id)}
+                  </p>
+                  <StatusBadge
+                    label={s.status.toUpperCase()}
+                    variant={
+                      s.status === "active"
+                        ? "active"
+                        : s.status === "completed"
+                        ? "online"
+                        : s.status === "paused"
+                        ? "warning"
+                        : "neutral"
+                    }
+                    pulse={s.status === "active"}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassPanel>
+
+        <GlassPanel>
+          <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist mb-5">
+            Domain Weakness
+          </h3>
+          {!user || user.role === "trainee" ? (
+            <p className="text-xs text-aegis-slate py-3">
+              Instructor or higher required to view domain analytics.
+            </p>
+          ) : weakState.loading ? (
+            <LoadingInline label="Loading analytics" />
+          ) : weakState.error ? (
+            <ErrorInline message={weakState.error} onRetry={weakState.refetch} />
+          ) : !weakState.data ? (
+            <p className="text-xs text-aegis-slate py-3">No analytics available yet.</p>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-aegis-cloud leading-relaxed">
+                {weakState.data.recommended_focus}
+              </p>
+              <div className="space-y-2">
+                {weakState.data.weakest_skills.slice(0, 5).map((s) => (
+                  <div
+                    key={s.skill}
+                    className="flex items-center justify-between text-xs"
+                  >
+                    <span className="text-aegis-cloud truncate">{s.skill}</span>
+                    <span className="font-mono font-bold text-aegis-amber">
+                      {Math.round(s.average_score)}%
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </GlassPanel>
       </div>
     </motion.div>

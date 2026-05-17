@@ -8,20 +8,30 @@ import {
   SkipForward,
   SkipBack,
   Settings,
-  Download,
   Ship,
   Plane,
   Radio,
   Target,
   Shield,
-  Users,
   Zap,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { AegisButton } from "@/components/ui/aegis-button";
 import { staggerContainer, fadeInUp } from "@/animations/variants";
+import { scenarios, sessions, analytics } from "@/lib/api/endpoints";
+import { useApi, useMutation } from "@/lib/api/hooks";
+import { useUserStore } from "@/stores/user-store";
+import type { Scenario, TrainingSession } from "@/lib/api/types";
 
+const DOMAIN = "warfare_simulation";
+
+// Visualization-only roster shown alongside the live tactical map. These are
+// illustrative force layouts; the backend exposes scenarios + sessions, not a
+// per-ship roster, so this part of the UI is intentionally static.
 const blueForce = [
   { type: "Frigate", name: "INS Chennai", status: "Active", icon: Ship },
   { type: "Destroyer", name: "INS Kolkata", status: "Active", icon: Ship },
@@ -36,23 +46,76 @@ const redForce = [
   { type: "UUV x3", name: "Red UUV Pack", status: "Active", icon: Radio },
 ];
 
-const battleEvents = [
-  { time: "T+00:12", event: "Blue UAV flight detects Red surface group bearing 045", severity: "info" },
-  { time: "T+00:15", event: "Red swarm launched -- 12 UAVs, heading 225", severity: "danger" },
-  { time: "T+00:18", event: "INS Chennai classifies Red sub -- torpedo warning", severity: "danger" },
-  { time: "T+00:20", event: "Blue CIWS engaged -- 4 Red UAVs neutralized", severity: "success" },
-  { time: "T+00:22", event: "Red corvette group altering course -- evasive maneuver", severity: "info" },
-  { time: "T+00:25", event: "Blue USV sensor mesh detects UUV pack bearing 180", severity: "warning" },
-];
+function shortId(id: string): string {
+  return id.length > 8 ? id.slice(0, 8).toUpperCase() : id.toUpperCase();
+}
 
-const severityColors: Record<string, string> = {
-  info: "text-aegis-cyan",
-  danger: "text-aegis-red",
-  success: "text-aegis-green",
-  warning: "text-aegis-amber",
-};
+function LoadingInline({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 py-4 text-aegis-mist">
+      <Loader2 className="w-4 h-4 animate-spin text-aegis-cyan" />
+      <span className="text-xs font-heading tracking-wider uppercase">
+        {label}&hellip;
+      </span>
+    </div>
+  );
+}
+
+function ErrorInline({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex items-start gap-3 py-3">
+      <AlertTriangle className="w-4 h-4 text-aegis-red shrink-0 mt-0.5" />
+      <div className="flex-1">
+        <p className="text-xs text-aegis-cloud leading-relaxed">{message}</p>
+        <button
+          onClick={onRetry}
+          className="text-[10px] font-heading text-aegis-cyan mt-2 tracking-wider uppercase cursor-pointer"
+        >
+          Retry &rarr;
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function WarfareSimPage() {
+  const user = useUserStore((s) => s.user);
+  const router = useRouter();
+
+  const scenariosState = useApi(
+    () => scenarios.list({ domain: DOMAIN, page_size: 50 }),
+    []
+  );
+  const sessionsState = useApi(
+    () =>
+      user
+        ? sessions.list({ trainee_id: user.id, page_size: 10 })
+        : Promise.resolve(null),
+    [user?.id],
+    { skip: !user }
+  );
+  const weakState = useApi(() => analytics.domain(DOMAIN), [], {
+    skip: !user || user.role === "trainee",
+  });
+
+  const { run: startScenario, loading: starting } = useMutation(scenarios.start);
+
+  const onStart = async (scenarioId: string) => {
+    if (!user) return;
+    const res = await startScenario(scenarioId, { trainee_id: user.id });
+    if (res) router.push(`/app/sessions/${res.session_id}`);
+  };
+
+  const onStartFirst = async () => {
+    const first = scenariosState.data?.items?.[0];
+    if (first) await onStart(first.id);
+  };
+
+  const allScenarios: Scenario[] = scenariosState.data?.items ?? [];
+  const recentSessions: TrainingSession[] = (sessionsState.data?.items ?? []).filter(
+    (s) => allScenarios.some((sc) => sc.id === s.scenario_id)
+  );
+
   return (
     <motion.div
       variants={staggerContainer}
@@ -79,7 +142,13 @@ export default function WarfareSimPage() {
           <AegisButton variant="secondary" size="sm" icon={<Settings className="w-4 h-4" />}>
             Configure
           </AegisButton>
-          <AegisButton size="sm" icon={<Play className="w-4 h-4" />}>
+          <AegisButton
+            size="sm"
+            icon={<Play className="w-4 h-4" />}
+            disabled={!user || starting || allScenarios.length === 0}
+            loading={starting}
+            onClick={onStartFirst}
+          >
             New Scenario
           </AegisButton>
         </div>
@@ -241,26 +310,139 @@ export default function WarfareSimPage() {
           </div>
         </GlassPanel>
 
-        {/* Battle Events */}
+        {/* Scenario Library / Events */}
         <GlassPanel animated={false}>
           <div className="flex items-center gap-2 mb-4">
             <Zap className="w-4 h-4 text-aegis-amber" />
             <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist">
-              Battle Event Log
+              Scenario Library
             </h3>
           </div>
-          <div className="space-y-3 max-h-[300px] overflow-y-auto">
-            {battleEvents.map((evt, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <span className="text-[10px] font-mono text-aegis-slate shrink-0 mt-0.5 w-14">
-                  {evt.time}
-                </span>
-                <p className={`text-xs leading-relaxed ${severityColors[evt.severity]}`}>
-                  {evt.event}
-                </p>
+          {scenariosState.loading ? (
+            <LoadingInline label="Loading scenarios" />
+          ) : scenariosState.error ? (
+            <ErrorInline
+              message={scenariosState.error}
+              onRetry={scenariosState.refetch}
+            />
+          ) : allScenarios.length === 0 ? (
+            <p className="text-xs text-aegis-slate py-3">
+              No warfare simulation scenarios available.
+            </p>
+          ) : (
+            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+              {allScenarios.slice(0, 6).map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-aegis-cloud truncate">
+                      {s.title}
+                    </p>
+                    <p className="text-[10px] font-mono text-aegis-slate mt-0.5">
+                      {s.difficulty.toUpperCase()} &bull;{" "}
+                      {s.estimated_duration_minutes}m
+                    </p>
+                  </div>
+                  <AegisButton
+                    size="sm"
+                    variant="ghost"
+                    icon={<Play className="w-3 h-3" />}
+                    disabled={!user || starting}
+                    onClick={() => onStart(s.id)}
+                  >
+                    Run
+                  </AegisButton>
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassPanel>
+      </div>
+
+      {/* Recent sessions + domain weakness */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <GlassPanel animated={false}>
+          <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist mb-5">
+            Your Recent Warfare Sessions
+          </h3>
+          {!user ? (
+            <p className="text-xs text-aegis-slate py-3">Sign in to see your sessions.</p>
+          ) : sessionsState.loading ? (
+            <LoadingInline label="Loading sessions" />
+          ) : sessionsState.error ? (
+            <ErrorInline
+              message={sessionsState.error}
+              onRetry={sessionsState.refetch}
+            />
+          ) : recentSessions.length === 0 ? (
+            <p className="text-xs text-aegis-slate py-3">
+              No warfare simulation sessions on record.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {recentSessions.slice(0, 5).map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-white/[0.02] border border-white/[0.04]"
+                >
+                  <p className="text-xs font-mono font-bold text-aegis-cyan">
+                    {shortId(s.id)}
+                  </p>
+                  <StatusBadge
+                    label={s.status.toUpperCase()}
+                    variant={
+                      s.status === "active"
+                        ? "active"
+                        : s.status === "completed"
+                        ? "online"
+                        : s.status === "paused"
+                        ? "warning"
+                        : "neutral"
+                    }
+                    pulse={s.status === "active"}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassPanel>
+
+        <GlassPanel animated={false}>
+          <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist mb-5">
+            Domain Weakness
+          </h3>
+          {!user || user.role === "trainee" ? (
+            <p className="text-xs text-aegis-slate py-3">
+              Instructor or higher required to view domain analytics.
+            </p>
+          ) : weakState.loading ? (
+            <LoadingInline label="Loading analytics" />
+          ) : weakState.error ? (
+            <ErrorInline message={weakState.error} onRetry={weakState.refetch} />
+          ) : !weakState.data ? (
+            <p className="text-xs text-aegis-slate py-3">No analytics available yet.</p>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-aegis-cloud leading-relaxed">
+                {weakState.data.recommended_focus}
+              </p>
+              <div className="space-y-2">
+                {weakState.data.weakest_skills.slice(0, 5).map((s) => (
+                  <div
+                    key={s.skill}
+                    className="flex items-center justify-between text-xs"
+                  >
+                    <span className="text-aegis-cloud truncate">{s.skill}</span>
+                    <span className="font-mono font-bold text-aegis-amber">
+                      {Math.round(s.average_score)}%
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </GlassPanel>
       </div>
     </motion.div>

@@ -12,6 +12,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { performLogout } from "@/lib/auth";
 
 const ROLE_BREADCRUMB: Record<string, string> = {
   trainee: "My Training",
@@ -26,7 +27,6 @@ const ROLE_BREADCRUMB: Record<string, string> = {
 export function TopBar() {
   const { sidebarCollapsed, toggleAIWidget, toggleCommandPalette } = useAppStore();
   const user = useUserStore((s) => s.user);
-  const logout = useUserStore((s) => s.logout);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -36,8 +36,8 @@ export function TopBar() {
       : "Command Center"
     : "Command Center";
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await performLogout();
     router.push("/login");
   };
 

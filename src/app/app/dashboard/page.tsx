@@ -8,14 +8,18 @@ import { useUserStore } from "@/stores/user-store";
 export default function DashboardDispatchPage() {
   const router = useRouter();
   const user = useUserStore((s) => s.user);
+  const hydrated = useUserStore((s) => s.hydrated);
 
   useEffect(() => {
+    // Wait until auth hydration has finished so we don't bounce the user
+    // to /login before /api/auth/me has had a chance to resolve.
+    if (!hydrated) return;
     if (!user) {
       router.replace("/login");
       return;
     }
     router.replace(user.homePath);
-  }, [user, router]);
+  }, [user, hydrated, router]);
 
   return (
     <div className="min-h-[50vh] flex items-center justify-center">

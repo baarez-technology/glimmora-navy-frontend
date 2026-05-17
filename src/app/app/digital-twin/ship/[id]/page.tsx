@@ -8,6 +8,11 @@ export function generateStaticParams() {
   ];
 }
 
-export default function Page() {
-  return <ShipDetailClient />;
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  return <ShipDetailClient shipId={id} />;
 }

@@ -5,6 +5,7 @@ export function generateStaticParams() {
   return SESSION_IDS.map((id) => ({ id }));
 }
 
-export default function Page() {
-  return <DebriefClient />;
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <DebriefClient sessionId={id} />;
 }

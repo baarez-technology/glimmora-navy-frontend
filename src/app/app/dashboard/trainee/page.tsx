@@ -2,12 +2,10 @@
 
 import { motion } from "framer-motion";
 import {
-  GraduationCap,
   Play,
   Target,
   Award,
   Clock,
-  BookOpen,
   ChevronRight,
   Compass,
   Crosshair,
@@ -17,6 +15,9 @@ import {
   Bot,
   BrainCircuit,
   TrendingUp,
+  AlertTriangle,
+  Loader2,
+  type LucideIcon,
 } from "lucide-react";
 import { MetricCard } from "@/components/ui/metric-card";
 import { GlassPanel } from "@/components/ui/glass-panel";
@@ -24,66 +25,286 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { AegisButton } from "@/components/ui/aegis-button";
 import { staggerContainer, fadeInUp } from "@/animations/variants";
 import Link from "next/link";
+import { analytics, sessions } from "@/lib/api/endpoints";
+import { useApi } from "@/lib/api/hooks";
+import { useUserStore } from "@/stores/user-store";
+import type {
+  DomainScore,
+  PredictiveAnalytics,
+  PredictiveTrend,
+  TraineeAnalytics,
+  TrainingSession,
+} from "@/lib/api/types";
 
-const myCompetencies = [
-  { icon: Compass, domain: "Bridge & Navigation", score: 82, status: "On Track" },
-  { icon: Crosshair, domain: "CIC & Warfare", score: 74, status: "Needs Focus" },
-  { icon: Wrench, domain: "Engineering", score: 68, status: "Remediation" },
-  { icon: Flame, domain: "Damage Control", score: 71, status: "Needs Focus" },
-  { icon: Anchor, domain: "Small Boats", score: 86, status: "On Track" },
-  { icon: Bot, domain: "Unmanned Systems", score: 90, status: "Excellent" },
-];
+// ---------- helpers ----------
+const DOMAIN_ICON: Record<string, LucideIcon> = {
+  bridge: Compass,
+  navigation: Compass,
+  "bridge & navigation": Compass,
+  cic: Crosshair,
+  warfare: Crosshair,
+  "cic & warfare": Crosshair,
+  engineering: Wrench,
+  "damage control": Flame,
+  dc: Flame,
+  "small boats": Anchor,
+  "unmanned systems": Bot,
+  unmanned: Bot,
+};
 
-const upcomingSessions = [
-  { id: "BRM-048", domain: "Bridge Navigation", scenario: "COLREGS -- Crossing", time: "Today 15:00", type: "Scheduled" },
-  { id: "DC-035", domain: "Damage Control", scenario: "Engine Room Fire", time: "Tomorrow 09:00", type: "Remediation" },
-  { id: "CIC-014", domain: "CIC Warfare", scenario: "Multi-Axis Threat AAW", time: "Oct 24, 14:00", type: "Scheduled" },
-];
+function iconForDomain(domain: string): LucideIcon {
+  const key = domain.trim().toLowerCase();
+  return DOMAIN_ICON[key] ?? Target;
+}
 
-const recentScores = [
-  { id: "BRM-047", domain: "Bridge Nav", score: 87, date: "Today", trend: "up" as const },
-  { id: "CIC-012", domain: "CIC Warfare", score: 72, date: "Oct 19", trend: "down" as const },
-  { id: "ENG-034", domain: "Engineering", score: 68, date: "Oct 17", trend: "down" as const },
-  { id: "UAV-003", domain: "Unmanned", score: 91, date: "Oct 15", trend: "up" as const },
-  { id: "BRM-045", domain: "Bridge Nav", score: 79, date: "Oct 12", trend: "up" as const },
-];
+function competencyStatus(score: number): string {
+  if (score >= 85) return "Excellent";
+  if (score >= 75) return "On Track";
+  if (score >= 65) return "Needs Focus";
+  return "Remediation";
+}
 
-const learningPath = [
-  { milestone: "Bridge OOW Certification", progress: 75, total: 12, completed: 9 },
-  { milestone: "CIC Warfare Officer", progress: 40, total: 10, completed: 4 },
-  { milestone: "DC Leader Qualification", progress: 20, total: 8, completed: 2 },
-];
+function colorsForScore(score: number) {
+  const text =
+    score >= 85
+      ? "text-aegis-green"
+      : score >= 75
+      ? "text-aegis-cyan"
+      : "text-aegis-amber";
+  const bar =
+    score >= 85
+      ? "from-aegis-green to-aegis-cyan"
+      : score >= 75
+      ? "from-aegis-cyan to-aegis-blue"
+      : "from-aegis-amber to-aegis-orange";
+  return { text, bar };
+}
 
-const aiRecommendations = [
-  { text: "Practice Rule 6 (Safe Speed) scenarios in reduced visibility", domain: "Bridge", priority: "high" },
-  { text: "Review ASW target motion analysis before next CIC session", domain: "CIC", priority: "medium" },
-  { text: "Complete Engineering fault isolation remediation exercise", domain: "Engineering", priority: "high" },
-];
+function formatTime(iso?: string | null): string {
+  if (!iso) return "TBD";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-export default function TraineeDashboard() {
+function formatDate(iso?: string | null): string {
+  if (!iso) return "--";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function shortId(id: string): string {
+  return id.length > 8 ? id.slice(0, 8).toUpperCase() : id.toUpperCase();
+}
+
+function scoreFromSession(s: TrainingSession): number | null {
+  const raw = s.score;
+  if (!raw) return null;
+  const candidate = (raw.overall ?? raw.total ?? raw.score) as unknown;
+  if (typeof candidate === "number") return Math.round(candidate);
+  return null;
+}
+
+// ---------- small UI primitives ----------
+function LoadingPanel({ label = "Loading" }: { label?: string }) {
   return (
-    <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-6">
+    <div className="flex items-center gap-2 py-6 text-aegis-mist">
+      <Loader2 className="w-4 h-4 animate-spin text-aegis-cyan" />
+      <span className="text-xs font-heading tracking-wider uppercase">
+        {label}&hellip;
+      </span>
+    </div>
+  );
+}
+
+function ErrorPanel({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="flex items-start gap-3 py-4">
+      <AlertTriangle className="w-4 h-4 text-aegis-red shrink-0 mt-0.5" />
+      <div className="flex-1">
+        <p className="text-xs text-aegis-cloud leading-relaxed">{message}</p>
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="text-[10px] font-heading text-aegis-cyan mt-2 tracking-wider uppercase cursor-pointer"
+          >
+            Retry &rarr;
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptyHint({ text }: { text: string }) {
+  return <p className="text-xs text-aegis-slate py-3">{text}</p>;
+}
+
+// ---------- page ----------
+export default function TraineeDashboard() {
+  const user = useUserStore((s) => s.user);
+
+  const analyticsState = useApi<TraineeAnalytics | null>(
+    () => (user ? analytics.trainee(user.id) : Promise.resolve(null)),
+    [user?.id],
+    { skip: !user }
+  );
+
+  const activeSessionsState = useApi(
+    () =>
+      user
+        ? sessions.list({
+            trainee_id: user.id,
+            status: "active",
+            page_size: 5,
+          })
+        : Promise.resolve(null),
+    [user?.id],
+    { skip: !user }
+  );
+
+  const recentSessionsState = useApi(
+    () =>
+      user
+        ? sessions.list({ trainee_id: user.id, page_size: 5 })
+        : Promise.resolve(null),
+    [user?.id],
+    { skip: !user }
+  );
+
+  const predictiveState = useApi<PredictiveAnalytics | null>(
+    () => (user ? analytics.predictive(user.id) : Promise.resolve(null)),
+    [user?.id],
+    { skip: !user }
+  );
+
+  const a = analyticsState.data;
+  const activeSessionsData = activeSessionsState.data;
+  const recentSessionsData = recentSessionsState.data;
+  const predictive = predictiveState.data;
+
+  const overallScore = a ? Math.round(a.overall_score) : null;
+  const sessionsCompleted = a?.sessions_completed ?? null;
+  const certifications = a?.certifications_earned ?? null;
+  const nextSession = activeSessionsData?.items?.[0];
+
+  const competencies: DomainScore[] = a?.domains ?? [];
+  const upcomingSessions: TrainingSession[] = activeSessionsData?.items ?? [];
+  const recentSessions: TrainingSession[] = recentSessionsData?.items ?? [];
+
+  const recommendations: { domain: string; text: string; priority: string }[] =
+    [];
+  if (predictive?.predictions) {
+    for (const p of predictive.predictions as PredictiveTrend[]) {
+      const priority =
+        p.trajectory === "negative"
+          ? "high"
+          : p.current_score < 75
+          ? "medium"
+          : "low";
+      for (const rec of p.recommendations ?? []) {
+        recommendations.push({ domain: p.domain, text: rec, priority });
+      }
+    }
+  }
+
+  const headerSubtitle = user
+    ? `Welcome back, ${user.rank} ${user.name}${
+        user.unit ? ` • ${user.unit}` : ""
+      }`
+    : "Welcome back";
+
+  return (
+    <motion.div
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+      className="space-y-6"
+    >
       {/* Header */}
-      <motion.div variants={fadeInUp} className="flex items-center justify-between">
+      <motion.div
+        variants={fadeInUp}
+        className="flex items-center justify-between"
+      >
         <div>
           <h1 className="font-display text-2xl font-bold text-aegis-white tracking-wide">
             My Training Dashboard
           </h1>
           <p className="font-heading text-sm text-aegis-mist tracking-wider mt-1">
-            Welcome back, LT Jayesh Kumar &bull; Cohort 2024-B &bull; INS Vikrant
+            {headerSubtitle}
           </p>
         </div>
         <Link href="/app/sessions/new">
-          <AegisButton size="sm" icon={<Play className="w-4 h-4" />}>Start Training</AegisButton>
+          <AegisButton size="sm" icon={<Play className="w-4 h-4" />}>
+            Start Training
+          </AegisButton>
         </Link>
       </motion.div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard title="Overall Score" value="78%" trend={{ value: 2.1, direction: "up" }} icon={Target} />
-        <MetricCard title="Sessions Completed" value="40" subtitle="This month: 8" icon={Play} accentColor="text-aegis-green" />
-        <MetricCard title="Certifications" value="2 / 6" subtitle="1 in progress" icon={Award} accentColor="text-aegis-gold" />
-        <MetricCard title="Next Session" value="15:00" subtitle="Bridge Nav -- COLREGS" icon={Clock} accentColor="text-aegis-purple" />
+        <MetricCard
+          title="Overall Score"
+          value={
+            analyticsState.loading
+              ? "--"
+              : overallScore !== null
+              ? `${overallScore}%`
+              : "N/A"
+          }
+          icon={Target}
+        />
+        <MetricCard
+          title="Sessions Completed"
+          value={
+            analyticsState.loading
+              ? "--"
+              : sessionsCompleted !== null
+              ? String(sessionsCompleted)
+              : "0"
+          }
+          icon={Play}
+          accentColor="text-aegis-green"
+        />
+        <MetricCard
+          title="Certifications"
+          value={
+            analyticsState.loading
+              ? "--"
+              : certifications !== null
+              ? String(certifications)
+              : "0"
+          }
+          icon={Award}
+          accentColor="text-aegis-gold"
+        />
+        <MetricCard
+          title="Next Session"
+          value={
+            activeSessionsState.loading
+              ? "--"
+              : nextSession
+              ? formatTime(nextSession.started_at ?? nextSession.created_at)
+              : "None"
+          }
+          subtitle={
+            nextSession ? `Session ${shortId(nextSession.id)}` : "No active session"
+          }
+          icon={Clock}
+          accentColor="text-aegis-purple"
+        />
       </div>
 
       {/* Competency Overview + Upcoming Sessions */}
@@ -94,37 +315,72 @@ export default function TraineeDashboard() {
             <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist">
               My Competency Scores
             </h3>
-            <Link href="/app/profile" className="text-[10px] font-heading text-aegis-cyan flex items-center gap-1 cursor-pointer">
+            <Link
+              href="/app/profile"
+              className="text-[10px] font-heading text-aegis-cyan flex items-center gap-1 cursor-pointer"
+            >
               Full Profile <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {myCompetencies.map((c) => {
-              const color = c.score >= 85 ? "text-aegis-green" : c.score >= 75 ? "text-aegis-cyan" : "text-aegis-amber";
-              const barColor = c.score >= 85 ? "from-aegis-green to-aegis-cyan" : c.score >= 75 ? "from-aegis-cyan to-aegis-blue" : "from-aegis-amber to-aegis-orange";
-              return (
-                <div key={c.domain} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                  <div className="w-9 h-9 rounded-lg bg-white/[0.04] flex items-center justify-center shrink-0">
-                    <c.icon className="w-4 h-4 text-aegis-cyan" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-heading font-semibold text-aegis-cloud truncate">{c.domain}</span>
-                      <span className={`text-sm font-mono font-bold ${color}`}>{c.score}%</span>
+          {analyticsState.loading ? (
+            <LoadingPanel label="Loading competencies" />
+          ) : analyticsState.error ? (
+            <ErrorPanel
+              message={analyticsState.error}
+              onRetry={analyticsState.refetch}
+            />
+          ) : competencies.length === 0 ? (
+            <EmptyHint text="No competency data yet. Complete a training session to populate your scorecard." />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {competencies.map((c) => {
+                const Icon = iconForDomain(c.domain);
+                const score = Math.round(c.average_score);
+                const { text: color, bar: barColor } = colorsForScore(score);
+                return (
+                  <div
+                    key={c.domain}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-white/[0.04] flex items-center justify-center shrink-0">
+                      <Icon className="w-4 h-4 text-aegis-cyan" />
                     </div>
-                    <div className="w-full h-1.5 rounded-full bg-white/[0.06]">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${c.score}%` }}
-                        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                        className={`h-full rounded-full bg-gradient-to-r ${barColor}`}
-                      />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-heading font-semibold text-aegis-cloud truncate">
+                          {c.domain}
+                        </span>
+                        <span
+                          className={`text-sm font-mono font-bold ${color}`}
+                        >
+                          {score}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-white/[0.06]">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${score}%` }}
+                          transition={{
+                            duration: 1,
+                            ease: [0.16, 1, 0.3, 1],
+                          }}
+                          className={`h-full rounded-full bg-gradient-to-r ${barColor}`}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-[10px] font-heading text-aegis-slate">
+                          {competencyStatus(score)}
+                        </span>
+                        <span className="text-[10px] font-mono text-aegis-slate">
+                          {c.session_count} sessions
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </GlassPanel>
 
         {/* Upcoming Sessions */}
@@ -132,62 +388,50 @@ export default function TraineeDashboard() {
           <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist mb-5">
             Upcoming Sessions
           </h3>
-          <div className="space-y-3">
-            {upcomingSessions.map((s) => (
-              <div key={s.id} className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-mono text-aegis-slate">{s.id}</span>
-                  <StatusBadge
-                    label={s.type === "Remediation" ? "REMEDIATION" : "SCHEDULED"}
-                    variant={s.type === "Remediation" ? "warning" : "neutral"}
-                  />
-                </div>
-                <p className="text-sm font-semibold text-aegis-cloud">{s.domain}</p>
-                <p className="text-[10px] text-aegis-mist mt-0.5">{s.scenario}</p>
-                <div className="flex items-center gap-1.5 mt-2 text-aegis-cyan">
-                  <Clock className="w-3 h-3" />
-                  <span className="text-[10px] font-mono">{s.time}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          {activeSessionsState.loading ? (
+            <LoadingPanel label="Loading sessions" />
+          ) : activeSessionsState.error ? (
+            <ErrorPanel
+              message={activeSessionsState.error}
+              onRetry={activeSessionsState.refetch}
+            />
+          ) : upcomingSessions.length === 0 ? (
+            <EmptyHint text="No active sessions scheduled." />
+          ) : (
+            <div className="space-y-3">
+              {upcomingSessions.map((s) => (
+                <Link key={s.id} href={`/app/sessions/${s.id}`}>
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:border-aegis-cyan/15 transition-colors cursor-pointer">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-mono text-aegis-slate">
+                        {shortId(s.id)}
+                      </span>
+                      <StatusBadge label="ACTIVE" variant="active" pulse />
+                    </div>
+                    <p className="text-sm font-semibold text-aegis-cloud">
+                      Scenario {shortId(s.scenario_id)}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-2 text-aegis-cyan">
+                      <Clock className="w-3 h-3" />
+                      <span className="text-[10px] font-mono">
+                        {formatTime(s.started_at ?? s.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
           <Link href="/app/sessions" className="block mt-4">
-            <AegisButton variant="ghost" size="sm" className="w-full">View All Sessions</AegisButton>
+            <AegisButton variant="ghost" size="sm" className="w-full">
+              View All Sessions
+            </AegisButton>
           </Link>
         </GlassPanel>
       </div>
 
-      {/* Learning Path + AI Recommendations + Recent Scores */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Learning Path */}
-        <GlassPanel>
-          <div className="flex items-center gap-2 mb-5">
-            <BookOpen className="w-4 h-4 text-aegis-gold" />
-            <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist">
-              My Learning Path
-            </h3>
-          </div>
-          <div className="space-y-4">
-            {learningPath.map((lp) => (
-              <div key={lp.milestone}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-heading font-semibold text-aegis-cloud">{lp.milestone}</span>
-                  <span className="text-[10px] font-mono text-aegis-mist">{lp.completed}/{lp.total}</span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-white/[0.06]">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${lp.progress}%` }}
-                    transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                    className="h-full rounded-full bg-gradient-to-r from-aegis-gold to-aegis-amber"
-                  />
-                </div>
-                <span className="text-[10px] font-mono text-aegis-slate">{lp.progress}% complete</span>
-              </div>
-            ))}
-          </div>
-        </GlassPanel>
-
+      {/* AI Recommendations + Recent Scores */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* AI Recommendations */}
         <GlassPanel>
           <div className="flex items-center gap-2 mb-5">
@@ -196,44 +440,82 @@ export default function TraineeDashboard() {
               AI Recommendations
             </h3>
           </div>
-          <div className="space-y-3">
-            {aiRecommendations.map((rec, i) => (
-              <div key={i} className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <StatusBadge label={rec.domain} variant="active" />
-                  <StatusBadge
-                    label={rec.priority.toUpperCase()}
-                    variant={rec.priority === "high" ? "alert" : "warning"}
-                  />
+          {predictiveState.loading ? (
+            <LoadingPanel label="Generating recommendations" />
+          ) : predictiveState.error ? (
+            <ErrorPanel
+              message={predictiveState.error}
+              onRetry={predictiveState.refetch}
+            />
+          ) : recommendations.length === 0 ? (
+            <EmptyHint text="No predictive recommendations available yet." />
+          ) : (
+            <div className="space-y-3">
+              {recommendations.slice(0, 6).map((rec, i) => (
+                <div
+                  key={i}
+                  className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]"
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <StatusBadge label={rec.domain} variant="active" />
+                    <StatusBadge
+                      label={rec.priority.toUpperCase()}
+                      variant={rec.priority === "high" ? "alert" : "warning"}
+                    />
+                  </div>
+                  <p className="text-xs text-aegis-cloud leading-relaxed">
+                    {rec.text}
+                  </p>
                 </div>
-                <p className="text-xs text-aegis-cloud leading-relaxed">{rec.text}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </GlassPanel>
 
-        {/* Recent Scores */}
+        {/* Recent Sessions */}
         <GlassPanel>
           <div className="flex items-center gap-2 mb-5">
             <TrendingUp className="w-4 h-4 text-aegis-cyan" />
             <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist">
-              Recent Scores
+              Recent Sessions
             </h3>
           </div>
-          <div className="space-y-3">
-            {recentScores.map((s) => (
-              <div key={s.id} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white/[0.02] transition-colors">
-                <div>
-                  <p className="text-xs font-semibold text-aegis-cloud">{s.domain}</p>
-                  <p className="text-[10px] font-mono text-aegis-slate">{s.id} &bull; {s.date}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono font-bold text-aegis-cyan">{s.score}</span>
-                  <TrendingUp className={`w-3 h-3 ${s.trend === "up" ? "text-aegis-green" : "text-aegis-red rotate-180"}`} />
-                </div>
-              </div>
-            ))}
-          </div>
+          {recentSessionsState.loading ? (
+            <LoadingPanel label="Loading recent sessions" />
+          ) : recentSessionsState.error ? (
+            <ErrorPanel
+              message={recentSessionsState.error}
+              onRetry={recentSessionsState.refetch}
+            />
+          ) : recentSessions.length === 0 ? (
+            <EmptyHint text="No recent training sessions on record." />
+          ) : (
+            <div className="space-y-3">
+              {recentSessions.map((s) => {
+                const score = scoreFromSession(s);
+                return (
+                  <Link key={s.id} href={`/app/sessions/${s.id}`}>
+                    <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white/[0.02] transition-colors cursor-pointer">
+                      <div>
+                        <p className="text-xs font-semibold text-aegis-cloud">
+                          {shortId(s.id)}
+                        </p>
+                        <p className="text-[10px] font-mono text-aegis-slate">
+                          {formatDate(s.ended_at ?? s.started_at ?? s.created_at)}{" "}
+                          &bull; {s.status}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono font-bold text-aegis-cyan">
+                          {score !== null ? score : "--"}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </GlassPanel>
       </div>
     </motion.div>

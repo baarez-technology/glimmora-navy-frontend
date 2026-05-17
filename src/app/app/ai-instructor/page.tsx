@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   BrainCircuit,
@@ -13,10 +14,16 @@ import {
   Clock,
   ChevronRight,
   Settings,
+  Send,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { staggerContainer, fadeInUp } from "@/animations/variants";
+import { ai } from "@/lib/api/endpoints";
+import { useApi, useMutation } from "@/lib/api/hooks";
+import type { ChatMessage } from "@/lib/api/types";
 
 const instructionModes = [
   { icon: Eye, label: "Silent Observe", active: false },
@@ -24,45 +31,6 @@ const instructionModes = [
   { icon: MessageSquare, label: "Guided Questioning", active: true },
   { icon: AlertTriangle, label: "Corrective", active: false },
   { icon: Zap, label: "Challenge Escalation", active: false },
-];
-
-const activeSessions = [
-  {
-    id: "BRM-047",
-    trainee: "LT J. Kumar",
-    domain: "Bridge Navigation",
-    duration: "47 min",
-    aiMode: "Guided Questioning",
-    confidence: 82,
-    lastAction: "Why did you alter course to port when the contact was on your starboard bow?",
-  },
-  {
-    id: "CIC-012",
-    trainee: "SLT R. Patel",
-    domain: "CIC Warfare - AAW",
-    duration: "23 min",
-    aiMode: "Hinting",
-    confidence: 65,
-    lastAction: "Consider the classification criteria for this radar return in a cluttered environment.",
-  },
-  {
-    id: "ENG-091",
-    trainee: "CPO M. Singh",
-    domain: "Engineering - Fault Isolation",
-    duration: "34 min",
-    aiMode: "Silent Observe",
-    confidence: 91,
-    lastAction: "Monitoring -- trainee following correct isolation procedure.",
-  },
-];
-
-const interventionLog = [
-  { time: "14:23", action: "Hint sent to LT Kumar -- COLREGS Rule 15 prompt", type: "hint" },
-  { time: "14:21", action: "Challenge escalated for SLT Patel -- target re-evaluation", type: "challenge" },
-  { time: "14:19", action: "Silent observation -- CPO Singh performing correctly", type: "observe" },
-  { time: "14:15", action: "Session BRM-047 started -- AI Instructor activated", type: "system" },
-  { time: "14:12", action: "Corrective prompt issued -- trainee missed bridge check", type: "corrective" },
-  { time: "14:08", action: "Competency update -- navigation proficiency +2%", type: "update" },
 ];
 
 const logTypeColors: Record<string, string> = {
@@ -74,7 +42,67 @@ const logTypeColors: Record<string, string> = {
   update: "text-aegis-green",
 };
 
+function classifyInteractionType(type: string): string {
+  const t = type.toLowerCase();
+  if (t.includes("hint")) return "hint";
+  if (t.includes("assess")) return "challenge";
+  if (t.includes("override") || t.includes("correct")) return "corrective";
+  if (t.includes("remediate")) return "update";
+  if (t.includes("chat")) return "observe";
+  return "system";
+}
+
+function badgeVariantForStatus(status: string): "online" | "offline" | "warning" {
+  const s = (status || "").toLowerCase();
+  if (s.includes("ok") || s.includes("online") || s.includes("ready") || s.includes("healthy") || s.includes("loaded"))
+    return "online";
+  if (s.includes("degraded") || s.includes("warn")) return "warning";
+  return "offline";
+}
+
 export default function AIInstructorPage() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [context, setContext] = useState("");
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const modelState = useApi(() => ai.modelInfo(), []);
+  const auditState = useApi(
+    () => ai.auditLog({ page: 1, page_size: 8 }),
+    []
+  );
+  const { run: sendChat, loading: chatLoading, error: chatError } = useMutation(
+    ai.chat
+  );
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, chatLoading]);
+
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || chatLoading) return;
+    const userMsg: ChatMessage = { role: "user", content: text };
+    const nextHistory: ChatMessage[] = [...messages, userMsg];
+    setMessages(nextHistory);
+    setInput("");
+    const res = await sendChat({
+      messages: nextHistory,
+      context: context.trim() || undefined,
+    });
+    if (res) {
+      setMessages((m) => [...m, { role: "assistant", content: res.response }]);
+    }
+  };
+
+  const modelLabel = modelState.data?.model_in_use || modelState.data?.model_name;
+  const modelStatus = modelState.data?.status || "unknown";
+  const modelOnline = !!modelState.data?.available;
+
+  const auditEntries = auditState.data?.items ?? [];
+
   return (
     <motion.div
       variants={staggerContainer}
@@ -97,10 +125,23 @@ export default function AIInstructorPage() {
             </p>
           </div>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg glass border border-white/[0.06] text-xs font-heading text-aegis-mist hover:text-aegis-cyan transition-colors cursor-pointer">
-          <Settings className="w-4 h-4" />
-          Configure
-        </button>
+        <div className="flex items-center gap-3">
+          {modelState.loading ? (
+            <StatusBadge label="Loading..." variant="neutral" />
+          ) : modelState.error ? (
+            <StatusBadge label="Model Offline" variant="offline" />
+          ) : (
+            <StatusBadge
+              label={`${modelLabel || "Model"} ${modelStatus}`}
+              variant={badgeVariantForStatus(modelStatus)}
+              pulse={modelOnline}
+            />
+          )}
+          <button className="flex items-center gap-2 px-4 py-2 rounded-lg glass border border-white/[0.06] text-xs font-heading text-aegis-mist hover:text-aegis-cyan transition-colors cursor-pointer">
+            <Settings className="w-4 h-4" />
+            Configure
+          </button>
+        </div>
       </motion.div>
 
       {/* Instruction Mode Selector */}
@@ -127,85 +168,134 @@ export default function AIInstructorPage() {
 
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Active Sessions (Left 60%) */}
+        {/* Chat Console (Left 60%) */}
         <div className="lg:col-span-3 space-y-4">
           <motion.div variants={fadeInUp}>
             <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist mb-4">
-              Active Sessions Monitor
+              Live Instructor Console
             </h3>
           </motion.div>
 
-          {activeSessions.map((session) => (
-            <motion.div key={session.id} variants={fadeInUp}>
-              <GlassPanel className="hover:border-aegis-cyan/15 transition-colors">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-aegis-cyan/20 to-aegis-blue/10 flex items-center justify-center">
-                      <Activity className="w-5 h-5 text-aegis-cyan" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-heading text-sm font-bold text-aegis-white tracking-wide">
-                          {session.id}
-                        </span>
-                        <StatusBadge label="ACTIVE" variant="active" pulse />
-                      </div>
-                      <p className="text-xs text-aegis-mist mt-0.5">
-                        {session.trainee} &bull; {session.domain}
-                      </p>
-                    </div>
+          <motion.div variants={fadeInUp}>
+            <GlassPanel className="flex flex-col" animated={false}>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-aegis-cyan/20 to-aegis-blue/10 flex items-center justify-center">
+                    <Activity className="w-5 h-5 text-aegis-cyan" />
                   </div>
-                  <div className="flex items-center gap-2 text-aegis-slate">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span className="text-xs font-mono">{session.duration}</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <span className="text-[10px] font-heading text-aegis-slate tracking-wider uppercase">
-                      AI Mode
-                    </span>
-                    <p className="text-sm font-heading font-semibold text-aegis-purple mt-0.5">
-                      {session.aiMode}
+                    <div className="flex items-center gap-2">
+                      <span className="font-heading text-sm font-bold text-aegis-white tracking-wide">
+                        AEGIS AI CHAT
+                      </span>
+                      <StatusBadge
+                        label={modelOnline ? "ACTIVE" : "WAITING"}
+                        variant={modelOnline ? "active" : "neutral"}
+                        pulse={modelOnline}
+                      />
+                    </div>
+                    <p className="text-xs text-aegis-mist mt-0.5">
+                      Doctrine-grounded reasoning &bull; {modelLabel || "loading model"}
                     </p>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-heading text-aegis-slate tracking-wider uppercase">
-                      Confidence
-                    </span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex-1 h-1.5 rounded-full bg-white/[0.06]">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${session.confidence}%` }}
-                          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                          className="h-full rounded-full bg-gradient-to-r from-aegis-cyan to-aegis-green"
-                        />
+                </div>
+                <div className="flex items-center gap-2 text-aegis-slate">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span className="text-xs font-mono">
+                    {messages.length} turns
+                  </span>
+                </div>
+              </div>
+
+              <div
+                ref={scrollRef}
+                className="space-y-3 min-h-[260px] max-h-[420px] overflow-y-auto p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]"
+              >
+                {messages.length === 0 && !chatLoading && (
+                  <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
+                    <Sparkles className="w-6 h-6 text-aegis-purple/60" />
+                    <p className="text-xs text-aegis-slate">
+                      Ask AEGIS AI a doctrine, scenario, or coaching question to start the session.
+                    </p>
+                  </div>
+                )}
+                {messages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`flex ${
+                      msg.role === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${
+                        msg.role === "user"
+                          ? "bg-aegis-cyan/15 text-aegis-white border border-aegis-cyan/30"
+                          : "bg-white/[0.04] text-aegis-cloud border border-white/[0.05]"
+                      }`}
+                    >
+                      <div className="text-[10px] font-heading text-aegis-slate tracking-wider uppercase mb-1">
+                        {msg.role === "user" ? "Instructor" : "AEGIS AI"}
                       </div>
-                      <span className="text-xs font-mono font-bold text-aegis-cyan">
-                        {session.confidence}%
-                      </span>
+                      <div className="whitespace-pre-wrap">{msg.content}</div>
                     </div>
                   </div>
-                </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="rounded-xl px-3.5 py-2.5 text-xs bg-white/[0.04] border border-white/[0.05] text-aegis-mist flex items-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      AEGIS AI is reasoning...
+                    </div>
+                  </div>
+                )}
+                {chatError && (
+                  <div className="text-[11px] text-aegis-red px-2">{chatError}</div>
+                )}
+              </div>
 
-                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                  <span className="text-[10px] font-heading text-aegis-slate tracking-wider uppercase">
-                    Last AI Action
-                  </span>
-                  <p className="text-xs text-aegis-cloud mt-1 leading-relaxed italic">
-                    &ldquo;{session.lastAction}&rdquo;
-                  </p>
+              <div className="mt-4 space-y-2">
+                <input
+                  type="text"
+                  value={context}
+                  onChange={(e) => setContext(e.target.value)}
+                  placeholder="Optional context (scenario id, doctrine version, etc.)"
+                  className="w-full bg-white/[0.02] border border-white/[0.05] rounded-lg px-3 py-2 text-xs text-aegis-cloud placeholder:text-aegis-slate focus:outline-none focus:border-aegis-cyan/40"
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder="Ask the AI Instructor..."
+                    className="flex-1 bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-aegis-white placeholder:text-aegis-slate focus:outline-none focus:border-aegis-cyan/50"
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={chatLoading || !input.trim()}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-aegis-cyan to-aegis-blue text-white text-xs font-heading font-bold tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity cursor-pointer"
+                  >
+                    {chatLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                    Send
+                  </button>
                 </div>
-              </GlassPanel>
-            </motion.div>
-          ))}
+              </div>
+            </GlassPanel>
+          </motion.div>
         </div>
 
         {/* Right Column (40%) */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Intervention Log */}
+          {/* Intervention Log (live AI audit) */}
           <motion.div variants={fadeInUp}>
             <GlassPanel>
               <div className="flex items-center justify-between mb-5">
@@ -216,52 +306,105 @@ export default function AIInstructorPage() {
                   Full Log <ChevronRight className="w-3 h-3" />
                 </button>
               </div>
-              <div className="space-y-3">
-                {interventionLog.map((entry, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <span className="text-[10px] font-mono text-aegis-slate shrink-0 mt-0.5 w-10">
-                      {entry.time}
-                    </span>
-                    <div className="w-1.5 h-1.5 rounded-full bg-aegis-gunmetal shrink-0 mt-1.5" />
-                    <p className={`text-xs leading-relaxed ${logTypeColors[entry.type]}`}>
-                      {entry.action}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              {auditState.loading ? (
+                <div className="flex items-center gap-2 text-xs text-aegis-mist">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Loading recent AI activity...
+                </div>
+              ) : auditState.error ? (
+                <p className="text-xs text-aegis-red">{auditState.error}</p>
+              ) : auditEntries.length === 0 ? (
+                <p className="text-xs text-aegis-slate">No AI interactions recorded yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {auditEntries.map((entry) => {
+                    const kind = classifyInteractionType(entry.interaction_type);
+                    const time = new Date(entry.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                    const detail = entry.override_reason
+                      ? `Override: ${entry.override_reason}`
+                      : `${entry.interaction_type}${
+                          entry.doctrine_version_used
+                            ? ` -- doctrine ${entry.doctrine_version_used}`
+                            : ""
+                        }`;
+                    return (
+                      <div key={entry.id} className="flex items-start gap-3">
+                        <span className="text-[10px] font-mono text-aegis-slate shrink-0 mt-0.5 w-10">
+                          {time}
+                        </span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-aegis-gunmetal shrink-0 mt-1.5" />
+                        <p className={`text-xs leading-relaxed ${logTypeColors[kind]}`}>
+                          {detail}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </GlassPanel>
           </motion.div>
 
-          {/* Policy Controls */}
+          {/* Model Status / Policy */}
           <motion.div variants={fadeInUp}>
             <GlassPanel>
               <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist mb-5">
-                Policy Controls
+                Model & Policy
               </h3>
-              <div className="space-y-4">
-                {[
-                  { label: "Instructor Override Required", enabled: true },
-                  { label: "Auto Remediation Prompts", enabled: true },
-                  { label: "Challenge Escalation", enabled: false },
-                  { label: "Session Recording", enabled: true },
-                  { label: "Predictive Intervention", enabled: false },
-                ].map((control) => (
-                  <div key={control.label} className="flex items-center justify-between">
-                    <span className="text-xs text-aegis-cloud">{control.label}</span>
-                    <button
-                      className={`w-10 h-5 rounded-full transition-colors duration-200 cursor-pointer relative ${
-                        control.enabled ? "bg-aegis-cyan" : "bg-aegis-gunmetal"
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
-                          control.enabled ? "left-[22px]" : "left-0.5"
-                        }`}
-                      />
-                    </button>
+              {modelState.loading ? (
+                <div className="text-xs text-aegis-mist flex items-center gap-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading model info...
+                </div>
+              ) : modelState.error ? (
+                <p className="text-xs text-aegis-red">{modelState.error}</p>
+              ) : modelState.data ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-aegis-cloud">Provider</span>
+                    <span className="text-xs font-mono text-aegis-cyan">
+                      {modelState.data.provider}
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-aegis-cloud">Active Model</span>
+                    <span className="text-xs font-mono text-aegis-cyan">
+                      {modelState.data.model_in_use || modelState.data.model_name}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-aegis-cloud">Status</span>
+                    <StatusBadge
+                      label={modelState.data.status}
+                      variant={badgeVariantForStatus(modelState.data.status)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-aegis-cloud">Available</span>
+                    <span className="text-xs font-mono text-aegis-cyan">
+                      {modelState.data.available ? "yes" : "no"}
+                    </span>
+                  </div>
+                  {modelState.data.available_models?.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-heading text-aegis-slate tracking-wider uppercase">
+                        Available Models
+                      </span>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {modelState.data.available_models.map((m) => (
+                          <span
+                            key={m}
+                            className="px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-[10px] font-mono text-aegis-mist"
+                          >
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </GlassPanel>
           </motion.div>
 
@@ -271,15 +414,15 @@ export default function AIInstructorPage() {
               <div className="flex items-center gap-2 mb-4">
                 <Users className="w-4 h-4 text-aegis-cyan" />
                 <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist">
-                  Active Trainees
+                  Conversation Turns
                 </h3>
               </div>
               <div className="flex items-center gap-3">
                 <span className="font-mono text-3xl font-bold text-aegis-cyan">
-                  3
+                  {messages.length}
                 </span>
                 <span className="text-xs text-aegis-mist">
-                  under AI supervision
+                  messages in current session
                 </span>
               </div>
             </GlassPanel>
