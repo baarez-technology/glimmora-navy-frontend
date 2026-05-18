@@ -11,6 +11,7 @@ import type {
   CohortAnalytics,
   DoctrineDoc,
   DoctrineGrounding,
+  DocumentationTopic,
   DomainWeakness,
   FleetAnalytics,
   HealthMatrix,
@@ -324,6 +325,34 @@ export const t2v = {
     }/api/t2v/video/${domain}/${session_id}`,
 };
 
+// ============================================================ DOCUMENTATION
+export const documentation = {
+  list: (params: { domain?: string; active_only?: boolean } = {}) =>
+    api.get<DocumentationTopic[]>("/api/documentation", { query: params }),
+  get: (topic_id: UUID) =>
+    api.get<DocumentationTopic>(`/api/documentation/${topic_id}`),
+  create: (body: {
+    title: string;
+    domain: string;
+    description?: string;
+    content_markdown?: string;
+    example_interactive?: string;
+  }) => api.post<DocumentationTopic>("/api/documentation", body),
+  update: (
+    topic_id: UUID,
+    body: Partial<{
+      title: string;
+      domain: string;
+      description: string;
+      content_markdown: string;
+      example_interactive: string;
+      is_active: boolean;
+    }>
+  ) => api.put<DocumentationTopic>(`/api/documentation/${topic_id}`, body),
+  delete: (topic_id: UUID) =>
+    api.del<{ id: string }>(`/api/documentation/${topic_id}`),
+};
+
 // ============================================================ SYSTEM
 export const system = {
   health: () => api.get<HealthMatrix>("/api/system/health"),
@@ -337,6 +366,7 @@ export const system = {
     api.post<{ model_name: string; status: string }>("/api/system/model/load", {
       model_name,
       source_path,
+      
     }),
   modelStatus: () =>
     api.get<{
@@ -351,4 +381,12 @@ export const system = {
       status: string;
       initiated_at: string;
     }>("/api/system/backup", body),
+};
+
+// ============================================================ NOTIFICATIONS
+export const notifications = {
+  list: () => api.get<any[]>("/api/notifications"),
+  read: (notification_id: UUID) =>
+    api.patch<boolean>(`/api/notifications/${notification_id}/read`),
+  readAll: () => api.post<boolean>("/api/notifications/read-all"),
 };

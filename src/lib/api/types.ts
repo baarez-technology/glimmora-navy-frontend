@@ -333,6 +333,21 @@ export interface T2VModule {
   [key: string]: unknown;
 }
 
+// ---------------------------------------------------------------- Documentation
+export interface DocumentationTopic {
+  id: UUID;
+  title: string;
+  domain: string;
+  description: string | null;
+  content_markdown: string | null;
+  example_interactive: string | null;
+  created_by: UUID | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+
 // ---------------------------------------------------------------- System
 export interface ServiceStatus {
   name: string;

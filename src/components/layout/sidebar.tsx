@@ -91,6 +91,7 @@ const navGroups: NavGroup[] = [
     title: "AI & Intelligence",
     items: [
       { label: "AI Instructor", href: "/app/ai-instructor", icon: BrainCircuit, roles: ["trainee", "instructor", "admin"] },
+      { label: "Documentation", href: "/app/documentation", icon: BookOpen, roles: ["trainee", "instructor", "admin"] },
       { label: "Text-to-Video", href: "/app/text-to-video", icon: Video, roles: ["trainee", "instructor", "admin"] },
       { label: "Predictive Engine", href: "/app/predictive-engine", icon: Cpu, roles: ["instructor", "evaluator", "fleet", "admin"] },
       { label: "OwnLLM", href: "/app/own-llm", icon: Sparkles, roles: ["instructor", "doctrine", "admin"] },

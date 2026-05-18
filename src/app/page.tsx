@@ -204,12 +204,10 @@ export default function LandingPage() {
             variants={fadeInUp}
             className="flex flex-wrap items-center justify-center gap-4"
           >
-            <Link href="/login">
-              <AegisButton size="lg" icon={<ArrowRight className="w-5 h-5" />}>
-                Enter Command Center
-              </AegisButton>
-            </Link>
-            <AegisButton variant="secondary" size="lg">
+            <AegisButton href="/login" size="lg" icon={<ArrowRight className="w-5 h-5" />}>
+              Enter Command Center
+            </AegisButton>
+            <AegisButton href="#why-glimmora" variant="secondary" size="lg">
               Explore Platform
             </AegisButton>
           </motion.div>
@@ -236,7 +234,7 @@ export default function LandingPage() {
       {/* ============================================
           WHY GLIMMORA AEGIS SECTION
           ============================================ */}
-      <section className="relative py-32 px-6 bg-aegis-abyss">
+      <section id="why-glimmora" className="relative py-32 px-6 bg-aegis-abyss">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(0,229,255,0.04)_0%,transparent_60%)]" />
 
         <motion.div
@@ -473,12 +471,10 @@ export default function LandingPage() {
             ever built for naval forces.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/login">
-              <AegisButton size="lg" icon={<ArrowRight className="w-5 h-5" />}>
-                Enter Command Center
-              </AegisButton>
-            </Link>
-            <AegisButton variant="ghost" size="lg">
+            <AegisButton href="/login" size="lg" icon={<ArrowRight className="w-5 h-5" />}>
+              Enter Command Center
+            </AegisButton>
+            <AegisButton href="/contact" variant="ghost" size="lg">
               Contact Us
             </AegisButton>
           </div>

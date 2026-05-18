@@ -92,7 +92,7 @@ function ErrorPanel({
 
 export default function InstructorsPage() {
   const { data, loading, error, refetch } = useApi(
-    () => usersApi.list({ role: "instructor", page: 1, page_size: 200 }),
+    () => usersApi.list({ role: "instructor", page: 1, page_size: 100 }),
     []
   );
 

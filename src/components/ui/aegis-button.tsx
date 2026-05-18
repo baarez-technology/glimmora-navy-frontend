@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 interface AegisButtonProps {
   variant?: "primary" | "secondary" | "ghost" | "danger";
@@ -14,6 +15,7 @@ interface AegisButtonProps {
   children?: ReactNode;
   onClick?: () => void;
   type?: "button" | "submit" | "reset";
+  href?: string;
 }
 
 const variantStyles = {
@@ -43,20 +45,32 @@ export function AegisButton({
   disabled,
   onClick,
   type = "button",
+  href,
 }: AegisButtonProps) {
+  const commonClasses = cn(
+    "inline-flex items-center justify-center rounded-lg font-heading tracking-wide transition-all duration-200 cursor-pointer",
+    variantStyles[variant],
+    sizeStyles[size],
+    (disabled || loading) && "opacity-50 cursor-not-allowed",
+    className
+  );
+
+  if (href && !disabled && !loading) {
+    return (
+      <Link href={href} className={commonClasses} onClick={onClick}>
+        {icon}
+        {children}
+      </Link>
+    );
+  }
+
   return (
     <motion.button
       whileHover={disabled || loading ? undefined : { scale: 1.02 }}
       whileTap={disabled || loading ? undefined : { scale: 0.98 }}
       type={type}
       onClick={onClick}
-      className={cn(
-        "inline-flex items-center justify-center rounded-lg font-heading tracking-wide transition-all duration-200 cursor-pointer",
-        variantStyles[variant],
-        sizeStyles[size],
-        (disabled || loading) && "opacity-50 cursor-not-allowed",
-        className
-      )}
+      className={commonClasses}
       disabled={disabled || loading}
     >
       {loading ? (

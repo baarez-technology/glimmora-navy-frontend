@@ -13,6 +13,9 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { performLogout } from "@/lib/auth";
+import { notifications } from "@/lib/api/endpoints";
+import { useApi } from "@/lib/api/hooks";
+import { useMemo } from "react";
 
 const ROLE_BREADCRUMB: Record<string, string> = {
   trainee: "My Training",
@@ -29,6 +32,11 @@ export function TopBar() {
   const user = useUserStore((s) => s.user);
   const router = useRouter();
   const pathname = usePathname();
+
+  const { data: notificationsData } = useApi(notifications.list, [user?.id]);
+  const unreadCount = useMemo(() => {
+    return (notificationsData || []).filter((n: any) => !n.is_read).length;
+  }, [notificationsData]);
 
   const breadcrumb = user
     ? pathname?.startsWith(user.homePath) || pathname === "/app/dashboard"
@@ -88,11 +96,17 @@ export function TopBar() {
           </button>
 
           {/* Notifications */}
-          <button className="relative p-2.5 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
+          <button
+            onClick={() => router.push("/app/notifications")}
+            className="relative p-2.5 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+            title="Notifications"
+          >
             <Bell className="w-5 h-5 text-aegis-mist hover:text-aegis-cloud transition-colors" />
-            <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-aegis-red rounded-full flex items-center justify-center text-[9px] font-bold text-white font-mono">
-              3
-            </span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-aegis-red rounded-full flex items-center justify-center text-[9px] font-bold text-white font-mono animate-pulse">
+                {unreadCount}
+              </span>
+            )}
           </button>
 
           {/* Divider */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Lock,
@@ -114,6 +114,16 @@ export default function RolesPage() {
   const [page, setPage] = useState(1);
   const [filterRole, setFilterRole] = useState<string>("");
 
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showCreate) {
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    }
+  }, [showCreate]);
+
   const summary = useApi(() => users.rolesSummary(), []);
   const userList = useApi(
     () =>
@@ -225,7 +235,7 @@ export default function RolesPage() {
 
       {/* Create user form (admin only) */}
       {isAdmin && showCreate && (
-        <motion.div variants={fadeInUp}>
+        <motion.div ref={formRef} variants={fadeInUp}>
           <CreateUserForm
             onClose={() => setShowCreate(false)}
             onCreated={() => {
@@ -509,10 +519,10 @@ function CreateUserForm({
           <select
             value={form.role}
             onChange={(e) => setField("role", e.target.value)}
-            className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-aegis-white focus:outline-none focus:border-aegis-cyan/50"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-aegis-cloud focus:outline-none focus:border-aegis-cyan/40 transition-colors"
           >
             {ROLES.map((r) => (
-              <option key={r.key} value={r.key}>
+              <option key={r.key} value={r.key} className="text-slate-800">
                 {r.label}
               </option>
             ))}
@@ -525,10 +535,10 @@ function CreateUserForm({
           <select
             value={form.classification_clearance}
             onChange={(e) => setField("classification_clearance", e.target.value)}
-            className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-aegis-white focus:outline-none focus:border-aegis-cyan/50"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-aegis-cloud focus:outline-none focus:border-aegis-cyan/40 transition-colors"
           >
             {CLEARANCES.map((c) => (
-              <option key={c} value={c}>
+              <option key={c} value={c} className="text-slate-800">
                 {c}
               </option>
             ))}
@@ -584,7 +594,7 @@ function Field({
         required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-aegis-white placeholder:text-aegis-slate focus:outline-none focus:border-aegis-cyan/50"
+        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-aegis-cloud placeholder:text-slate-400 focus:outline-none focus:border-aegis-cyan/40 transition-colors"
       />
     </div>
   );

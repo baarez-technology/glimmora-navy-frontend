@@ -32,6 +32,7 @@ export function useAuthHydration(): { ready: boolean; user: UserProfile | null }
       // No token — if we somehow still have a persisted user, drop it.
       if (user) logout();
       setHydrated(true);
+      router.replace("/login");
       return;
     }
 

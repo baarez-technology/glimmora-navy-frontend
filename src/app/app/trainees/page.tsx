@@ -75,7 +75,7 @@ export default function TraineesPage() {
   const [search, setSearch] = useState("");
 
   const { data, loading, error, refetch } = useApi(
-    () => usersApi.trainees({ page: 1, page_size: 200 }),
+    () => usersApi.trainees({ page: 1, page_size: 100 }),
     []
   );
 
