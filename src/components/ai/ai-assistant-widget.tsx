@@ -57,7 +57,7 @@ export function AIAssistantWidget() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute bottom-16 right-0 w-[380px] h-[500px] glass-card rounded-2xl overflow-hidden flex flex-col"
+            className="absolute bottom-16 right-0 w-[320px] h-[420px] glass-card rounded-2xl overflow-hidden flex flex-col"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/60">
