@@ -17,6 +17,8 @@ import {
   TrendingUp,
   AlertTriangle,
   Loader2,
+  BookOpen,
+  CheckCircle2,
   type LucideIcon,
 } from "lucide-react";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -25,10 +27,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { AegisButton } from "@/components/ui/aegis-button";
 import { staggerContainer, fadeInUp } from "@/animations/variants";
 import Link from "next/link";
-import { analytics, sessions } from "@/lib/api/endpoints";
+import { analytics, sessions, documentation } from "@/lib/api/endpoints";
 import { useApi } from "@/lib/api/hooks";
 import { useUserStore } from "@/stores/user-store";
 import type {
+  DocumentationTopic,
   DomainScore,
   PredictiveAnalytics,
   PredictiveTrend,
@@ -190,6 +193,46 @@ export default function TraineeDashboard() {
     { skip: !user }
   );
 
+  // --- Study Manual Progress (same logic as /app/documentation) ---
+  const topicsData = useApi(() => documentation.list(), []);
+  const allSessionsData = useApi(
+    () => (user ? sessions.list({ trainee_id: user.id, page_size: 1000 }) : Promise.resolve(null)),
+    [user?.id],
+    { skip: !user }
+  );
+
+  const STUDY_DOMAINS: { key: string; label: string; Icon: LucideIcon }[] = [
+    { key: "bridge",           label: "Bridge & Navigation",   Icon: Compass },
+    { key: "cic",              label: "CIC & Warfare",         Icon: Crosshair },
+    { key: "engineering",      label: "Engineering",           Icon: Wrench },
+    { key: "damage_control",   label: "Damage Control",        Icon: Flame },
+    { key: "small_boats",      label: "Small Boats",           Icon: Anchor },
+    { key: "unmanned_systems", label: "Unmanned Systems",      Icon: Bot },
+  ];
+
+  function getTopicProgress(topic: DocumentationTopic, userId?: string): "completed" | "in_progress" | "not_started" {
+    const items = allSessionsData.data?.items || [];
+    const topicSessions = items.filter(
+      (s) =>
+        s.trainee_id === userId &&
+        (s.instructor_notes?.includes(`(Topic ID: ${topic.id})`) ||
+          s.instructor_notes?.includes(`study manual for "${topic.title}"`) ||
+          s.instructor_notes?.includes(topic.title))
+    );
+    if (topicSessions.length === 0) return "not_started";
+    if (topicSessions.some((s) => s.status === "completed")) return "completed";
+    return "in_progress";
+  }
+
+  const studyDomains = STUDY_DOMAINS.map(({ key, label, Icon }) => {
+    const domainTopics = (topicsData.data || []).filter((t) => t.domain === key);
+    const completed  = domainTopics.filter((t) => getTopicProgress(t, user?.id) === "completed").length;
+    const inProgress = domainTopics.filter((t) => getTopicProgress(t, user?.id) === "in_progress").length;
+    const total      = domainTopics.length;
+    const pct        = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { key, label, Icon, completed, inProgress, total, pct };
+  });
+
   const a = analyticsState.data;
   const activeSessionsData = activeSessionsState.data;
   const recentSessionsData = recentSessionsState.data;
@@ -322,7 +365,7 @@ export default function TraineeDashboard() {
               Full Profile <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
-          {analyticsState.loading ? (
+          {analyticsState.loading && !analyticsState.data ? (
             <LoadingPanel label="Loading competencies" />
           ) : analyticsState.error ? (
             <ErrorPanel
@@ -388,7 +431,7 @@ export default function TraineeDashboard() {
           <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist mb-5">
             Upcoming Sessions
           </h3>
-          {activeSessionsState.loading ? (
+          {activeSessionsState.loading && !activeSessionsState.data ? (
             <LoadingPanel label="Loading sessions" />
           ) : activeSessionsState.error ? (
             <ErrorPanel
@@ -430,6 +473,87 @@ export default function TraineeDashboard() {
         </GlassPanel>
       </div>
 
+      {/* Study Manual Progress */}
+      <motion.div variants={fadeInUp}>
+        <GlassPanel>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-aegis-cyan" />
+              <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist">
+                Study Manual Progress
+              </h3>
+            </div>
+            <Link
+              href="/app/documentation"
+              className="text-[10px] font-heading text-aegis-cyan flex items-center gap-1 cursor-pointer"
+            >
+              Open Manuals <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          {(topicsData.loading && !topicsData.data) || (allSessionsData.loading && !allSessionsData.data) ? (
+            <LoadingPanel label="Loading study progress" />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {studyDomains.map(({ key, label, Icon, completed, inProgress, total, pct }) => {
+                const barColor =
+                  pct === 100
+                    ? "from-aegis-green to-aegis-cyan"
+                    : pct >= 50
+                    ? "from-aegis-cyan to-aegis-blue"
+                    : "from-aegis-amber to-aegis-orange";
+                const textColor =
+                  pct === 100 ? "text-aegis-green" : pct >= 50 ? "text-aegis-cyan" : "text-aegis-amber";
+
+                return (
+                  <Link key={key} href="/app/documentation">
+                    <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:border-aegis-cyan/20 transition-colors cursor-pointer group">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-white/[0.04] flex items-center justify-center shrink-0">
+                          <Icon className="w-4 h-4 text-aegis-cyan" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-heading font-semibold text-aegis-cloud truncate">
+                            {label}
+                          </p>
+                          <p className="text-[10px] font-mono text-aegis-slate">
+                            {completed}/{total} completed
+                          </p>
+                        </div>
+                        {pct === 100 && (
+                          <CheckCircle2 className="w-4 h-4 text-aegis-green shrink-0" />
+                        )}
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="w-full h-1.5 rounded-full bg-white/[0.06]">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                          className={`h-full rounded-full bg-gradient-to-r ${barColor}`}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between mt-1.5">
+                        <span className={`text-[10px] font-mono font-bold ${textColor}`}>
+                          {pct}%
+                        </span>
+                        {inProgress > 0 && (
+                          <span className="text-[10px] font-heading text-aegis-amber">
+                            {inProgress} in progress
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </GlassPanel>
+      </motion.div>
+
       {/* AI Recommendations + Recent Scores */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* AI Recommendations */}
@@ -440,7 +564,7 @@ export default function TraineeDashboard() {
               AI Recommendations
             </h3>
           </div>
-          {predictiveState.loading ? (
+          {predictiveState.loading && !predictiveState.data ? (
             <LoadingPanel label="Generating recommendations" />
           ) : predictiveState.error ? (
             <ErrorPanel
@@ -480,7 +604,7 @@ export default function TraineeDashboard() {
               Recent Sessions
             </h3>
           </div>
-          {recentSessionsState.loading ? (
+          {recentSessionsState.loading && !recentSessionsState.data ? (
             <LoadingPanel label="Loading recent sessions" />
           ) : recentSessionsState.error ? (
             <ErrorPanel

@@ -113,7 +113,7 @@ export default function TextToVideoPage() {
                     (s.domain as Domain) ||
                     j.domain,
                   error: isFailure(s.status || "")
-                    ? (s.message as string) || s.status
+                    ? s.error || (s.message as string) || s.status
                     : undefined,
                 }
               : j
@@ -421,7 +421,7 @@ export default function TextToVideoPage() {
               <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist mb-4 flex items-center gap-2">
                 <Box className="w-3 h-3" /> Quick Modules
               </h3>
-              {modules.loading ? (
+              {modules.loading && !modules.data ? (
                 <div className="flex items-center gap-2 text-xs text-aegis-mist">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading modules...
                 </div>
@@ -460,7 +460,7 @@ export default function TextToVideoPage() {
               <h3 className="font-heading text-xs font-bold tracking-[0.1em] uppercase text-aegis-mist mb-5">
                 Recent Jobs
               </h3>
-              {jobsHistory.loading ? (
+              {jobsHistory.loading && !jobsHistory.data ? (
                 <div className="flex items-center gap-2 text-xs text-aegis-mist">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading history...
                 </div>

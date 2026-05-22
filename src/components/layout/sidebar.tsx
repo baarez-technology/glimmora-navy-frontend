@@ -5,7 +5,9 @@ import { useAppStore } from "@/stores/app-store";
 import { useUserStore, type UserRole } from "@/stores/user-store";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import logoImg from "@/assets/logo.png";
 import {
   LayoutDashboard,
   Compass,
@@ -178,30 +180,33 @@ export function Sidebar() {
     <motion.aside
       animate={{ width: sidebarCollapsed ? 72 : 280 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed left-0 top-0 bottom-0 z-[300] flex flex-col bg-slate-50 border-r border-slate-200/60 overflow-hidden"
+      className="fixed left-0 top-0 bottom-0 z-[450] flex flex-col bg-slate-50 border-r border-slate-200/60 overflow-hidden"
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 h-16 border-b border-slate-200/60 shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-aegis-cyan to-aegis-cyan-deep flex items-center justify-center shrink-0">
-          <Shield className="w-4 h-4 text-white" />
-        </div>
-        <AnimatePresence>
-          {!sidebarCollapsed && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: "auto" }}
-              exit={{ opacity: 0, width: 0 }}
-              className="overflow-hidden whitespace-nowrap"
-            >
-              <span className="font-display text-sm font-bold tracking-widest text-aegis-cyan">
-                AEGIS
-              </span>
-              <span className="font-heading text-xs text-aegis-mist ml-1.5 tracking-wider">
-                NAVY
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className={cn(
+        "flex items-center h-16 border-b border-slate-200/60 shrink-0 select-none transition-all duration-300",
+        sidebarCollapsed ? "px-3 justify-center" : "px-5"
+      )}>
+        <Link href="/app/dashboard" className="flex items-center">
+          <div className={cn(
+            "relative transition-all duration-300",
+            sidebarCollapsed ? "w-12 h-12" : "w-48 h-14"
+          )}>
+            <Image
+              src={logoImg}
+              alt="Glimmora Aegis Navy"
+              fill
+              className={cn(
+                "transition-all duration-300",
+                sidebarCollapsed
+                  ? "object-cover object-left rounded-lg"
+                  : "object-contain object-left"
+              )}
+              sizes={sidebarCollapsed ? "48px" : "192px"}
+              priority
+            />
+          </div>
+        </Link>
       </div>
 
       {/* Navigation */}

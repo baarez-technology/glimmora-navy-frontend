@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import { Shield, Send } from "lucide-react";
+import Image from "next/image";
+import logoImg from "@/assets/logo.png";
 import { staggerContainer, fadeInUp } from "@/animations/variants";
 import { AegisButton } from "@/components/ui/aegis-button";
 import Link from "next/link";
@@ -10,11 +12,13 @@ export default function ContactPage() {
   return (
     <div className="bg-aegis-void min-h-screen">
       <nav className="flex items-center justify-between px-8 py-4 border-b border-slate-200/60">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-aegis-cyan to-aegis-cyan-deep flex items-center justify-center">
-            <Shield className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-display text-sm font-bold tracking-widest text-aegis-cyan">GLIMMORA AEGIS</span>
+        <Link href="/" className="flex items-center select-none">
+          <Image
+            src={logoImg}
+            alt="Glimmora Aegis Navy"
+            className="h-8 w-auto object-contain"
+            priority
+          />
         </Link>
         <Link href="/login"><AegisButton size="sm">Login</AegisButton></Link>
       </nav>

@@ -322,6 +322,7 @@ export interface T2VJob {
   status: string;
   progress?: number;
   message?: string;
+  error?: string;
   question?: string;
   domain?: string;
   video_url?: string;

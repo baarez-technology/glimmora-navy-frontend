@@ -8,6 +8,8 @@ import { useAppStore } from "@/stores/app-store";
 import { useAuthHydration } from "@/lib/auth";
 import { motion } from "framer-motion";
 import { Shield } from "lucide-react";
+import Image from "next/image";
+import logoImg from "@/assets/logo.png";
 
 export default function AppLayout({
   children,
@@ -21,8 +23,12 @@ export default function AppLayout({
     return (
       <div className="min-h-screen bg-aegis-void flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-aegis-cyan to-aegis-cyan-deep flex items-center justify-center animate-pulse">
-            <Shield className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 flex items-center justify-center overflow-hidden rounded-xl animate-pulse select-none">
+            <Image
+              src={logoImg}
+              alt="Glimmora Aegis Navy"
+              className="w-12 h-12 object-cover object-left"
+            />
           </div>
           <p className="text-xs font-mono text-aegis-mist tracking-wider">
             AUTHENTICATING...

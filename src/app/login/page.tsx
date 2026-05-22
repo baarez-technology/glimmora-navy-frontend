@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import { Shield, LogIn } from "lucide-react";
+import Image from "next/image";
+import logoImg from "@/assets/logo.png";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { staggerContainer, fadeInUp, heroTextReveal } from "@/animations/variants";
@@ -65,16 +67,16 @@ export default function LoginPage() {
           animate="animate"
           className="relative z-10 w-full max-w-md"
         >
-          <motion.div variants={heroTextReveal} className="text-center mb-10">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-aegis-cyan to-aegis-cyan-deep flex items-center justify-center mx-auto mb-4 shadow-[0_8px_32px_rgba(14,165,233,0.25)]">
-              <Shield className="w-8 h-8 text-white" />
+          <motion.div variants={heroTextReveal} className="text-center mb-10 flex flex-col items-center justify-center select-none">
+            <div className="relative h-20 w-36">
+              <Image
+                src={logoImg}
+                alt="Glimmora Aegis Navy"
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
-            <h1 className="font-display text-3xl font-bold text-aegis-white tracking-[0.04em]">
-              GLIMMORA AEGIS
-            </h1>
-            <p className="font-heading text-sm text-aegis-cyan tracking-[0.2em] mt-1">
-              &mdash; N A V Y &mdash;
-            </p>
           </motion.div>
 
           <motion.form

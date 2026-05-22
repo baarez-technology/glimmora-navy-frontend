@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
+import logoImg from "@/assets/logo.png";
 import {
   Shield,
   BrainCircuit,
@@ -164,28 +166,17 @@ export default function LandingPage() {
           </motion.div>
 
           {/* Logo mark */}
-          <motion.div variants={heroTextReveal} className="mb-6">
-            <div className="inline-flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-aegis-cyan to-aegis-cyan-deep flex items-center justify-center shadow-[0_8px_32px_rgba(14,165,233,0.25)]">
-                <Shield className="w-8 h-8 text-white" />
-              </div>
+          <motion.div variants={heroTextReveal} className="mb-8 flex justify-center select-none">
+            <div className="relative h-32 w-56 md:h-40 md:w-72">
+              <Image
+                src={logoImg}
+                alt="Glimmora Aegis Navy"
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
           </motion.div>
-
-          {/* Title */}
-          <motion.h1
-            variants={heroTextReveal}
-            className="font-display text-5xl md:text-7xl lg:text-8xl font-black tracking-[0.04em] text-aegis-white mb-2"
-          >
-            GLIMMORA AEGIS
-          </motion.h1>
-
-          <motion.p
-            variants={heroTextReveal}
-            className="font-heading text-xl md:text-2xl font-bold tracking-[0.2em] text-aegis-cyan text-glow mb-6"
-          >
-            &mdash; N A V Y &mdash;
-          </motion.p>
 
           {/* Subtitle */}
           <motion.p
@@ -460,8 +451,12 @@ export default function LandingPage() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="relative max-w-2xl mx-auto text-center"
         >
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-aegis-cyan to-aegis-cyan-deep flex items-center justify-center mx-auto mb-8 shadow-[0_8px_32px_rgba(14,165,233,0.25)]">
-            <Shield className="w-8 h-8 text-white" />
+          <div className="w-16 h-16 mx-auto mb-8 flex items-center justify-center overflow-hidden rounded-2xl select-none">
+            <Image
+              src={logoImg}
+              alt="Glimmora Aegis Navy"
+              className="w-16 h-16 object-cover object-left"
+            />
           </div>
           <h2 className="font-display text-3xl md:text-4xl font-bold text-aegis-white tracking-wide mb-4">
             Ready to Transform Naval Training?
@@ -486,13 +481,15 @@ export default function LandingPage() {
           ============================================ */}
       <footer className="bg-aegis-void border-t border-slate-200/60 py-12 px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-aegis-cyan to-aegis-cyan-deep flex items-center justify-center">
-              <Shield className="w-4 h-4 text-white" />
+          <div className="flex items-center select-none">
+            <div className="relative h-8 w-14">
+              <Image
+                src={logoImg}
+                alt="Glimmora Aegis Navy"
+                fill
+                className="object-contain object-left"
+              />
             </div>
-            <span className="font-display text-sm font-bold tracking-widest text-aegis-cyan">
-              GLIMMORA AEGIS
-            </span>
           </div>
           <p className="text-xs text-aegis-slate font-mono">
             RESTRICTED -- FOR OFFICIAL USE ONLY | 100% OFFLINE | SOVEREIGN
