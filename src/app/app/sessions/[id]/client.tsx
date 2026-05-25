@@ -233,6 +233,7 @@ export default function SessionDetailClient({ sessionId }: Props) {
   );
 
   const pauseM = useMutation(sessionsApi.pause);
+  const resumeM = useMutation(sessionsApi.resume);
   const endM = useMutation(sessionsApi.end);
   const injectM = useMutation(sessionsApi.inject);
 
@@ -274,6 +275,11 @@ export default function SessionDetailClient({ sessionId }: Props) {
 
   async function handlePause() {
     await pauseM.run(session!.id);
+    sessionQ.refetch();
+  }
+
+  async function handleResume() {
+    await resumeM.run(session!.id);
     sessionQ.refetch();
   }
 
@@ -328,6 +334,17 @@ export default function SessionDetailClient({ sessionId }: Props) {
                 Pause
               </AegisButton>
             )}
+            {session.status === "paused" && (
+              <AegisButton
+                variant="secondary"
+                size="sm"
+                icon={<Play className="w-4 h-4" />}
+                onClick={handleResume}
+                loading={resumeM.loading}
+              >
+                Resume
+              </AegisButton>
+            )}
             <AegisButton
               variant="ghost"
               size="sm"
@@ -349,12 +366,12 @@ export default function SessionDetailClient({ sessionId }: Props) {
         )}
       </motion.div>
 
-      {(pauseM.error || endM.error) && (
+      {(pauseM.error || resumeM.error || endM.error) && (
         <motion.div variants={fadeInUp}>
           <GlassPanel animated={false} className="border-aegis-red/30">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-4 h-4 text-aegis-red shrink-0 mt-0.5" />
-              <p className="text-xs text-aegis-mist">{pauseM.error ?? endM.error}</p>
+              <p className="text-xs text-aegis-mist">{pauseM.error ?? resumeM.error ?? endM.error}</p>
             </div>
           </GlassPanel>
         </motion.div>
@@ -418,6 +435,14 @@ export default function SessionDetailClient({ sessionId }: Props) {
                     onClick={handlePause}
                   >
                     <Pause className="w-5 h-5" />
+                  </button>
+                )}
+                {canControl && session.status === "paused" && (
+                  <button
+                    className="w-10 h-10 rounded-full bg-aegis-green/20 border border-aegis-green/40 flex items-center justify-center text-aegis-green cursor-pointer"
+                    onClick={handleResume}
+                  >
+                    <Play className="w-5 h-5" />
                   </button>
                 )}
                 <span className="text-xs font-mono text-aegis-cyan">

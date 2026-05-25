@@ -190,6 +190,8 @@ export const sessions = {
     api.get<TrainingSession>(`/api/sessions/${session_id}`),
   pause: (session_id: UUID) =>
     api.patch<{ id: UUID; status: string }>(`/api/sessions/${session_id}/pause`),
+  resume: (session_id: UUID) =>
+    api.patch<{ id: UUID; status: string }>(`/api/sessions/${session_id}/resume`),
   end: (session_id: UUID, body: { instructor_notes?: string; final_score?: Record<string, unknown> } = {}) =>
     api.patch<TrainingSession>(`/api/sessions/${session_id}/end`, body),
   telemetry: (session_id: UUID) =>

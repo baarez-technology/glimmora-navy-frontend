@@ -180,7 +180,7 @@ export default function InstructorDashboard() {
             fleetState.loading
               ? "--"
               : fleet
-              ? `${Math.round(fleet.average_fleet_score)}%`
+              ? `${Math.round(fleet.average_fleet_score * 100)}%`
               : "N/A"
           }
           icon={Target}
@@ -347,7 +347,7 @@ export default function InstructorDashboard() {
             <div className="space-y-3">
               {Object.entries(fleet.domain_performance).map(
                 ([domain, score]) => {
-                  const s = Math.round(score);
+                  const s = Math.round(score * 100);
                   const color =
                     s >= 85
                       ? "text-aegis-green"

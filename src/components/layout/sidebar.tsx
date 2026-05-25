@@ -8,6 +8,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import logoImg from "@/assets/logo.png";
+import { useApi } from "@/lib/api/hooks";
+import { notifications } from "@/lib/api/endpoints";
+import { useMemo } from "react";
 import {
   LayoutDashboard,
   Compass,
@@ -167,6 +170,11 @@ export function Sidebar() {
   const rawPathname = usePathname();
   const pathname = stripTrailingSlash(rawPathname ?? "");
 
+  const { data: notificationsData } = useApi(notifications.list, [user?.id]);
+  const unreadCount = useMemo(() => {
+    return (notificationsData || []).filter((n: any) => !n.is_read).length;
+  }, [notificationsData]);
+
   const visibleGroups = navGroups
     .map((group) => ({
       ...group,
@@ -271,6 +279,15 @@ export function Sidebar() {
                       </motion.span>
                     )}
                   </AnimatePresence>
+                  {item.label === "Notifications" && unreadCount > 0 && (
+                    sidebarCollapsed ? (
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-aegis-red rounded-full" />
+                    ) : (
+                      <span className="ml-auto w-5 h-5 bg-aegis-red rounded-full flex items-center justify-center text-[10px] font-bold text-white font-mono shrink-0">
+                        {unreadCount}
+                      </span>
+                    )
+                  )}
                 </Link>
               );
             })}

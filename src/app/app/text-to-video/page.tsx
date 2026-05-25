@@ -85,6 +85,35 @@ export default function TextToVideoPage() {
   const jobsHistory = useApi(() => t2v.jobs(), []);
   const modules = useApi(() => t2v.modules(domain), [domain]);
 
+  // Automatically track any running jobs in history on load
+  useEffect(() => {
+    if (!jobsHistory.data) return;
+    const entries = Object.entries(jobsHistory.data) as Array<[string, T2VJobBase]>;
+    const runningJobs = entries
+      .filter(([_, job]) => !isTerminal(job.status || ""))
+      .map(([job_id, job]) => ({
+        job_id,
+        question: job.question || "",
+        domain: (job.domain as Domain) || "navy",
+        status: job.status || "queued",
+        message: job.message || job.status,
+        started_at: (job.started_at as number) || Date.now(),
+        progress: typeof job.progress === "number" ? job.progress : undefined,
+      }));
+    if (runningJobs.length > 0) {
+      setActiveJobs((prev) => {
+        const merged = [...prev];
+        runningJobs.forEach((rj) => {
+          if (!merged.some((mj) => mj.job_id === rj.job_id)) {
+            merged.push(rj);
+          }
+        });
+        return merged;
+      });
+      setTrackedJobId((curr) => curr || runningJobs[0].job_id);
+    }
+  }, [jobsHistory.data]);
+
   // Poll the most recently submitted job for status updates every 3 seconds.
   useEffect(() => {
     if (!trackedJobId) return;
@@ -470,31 +499,49 @@ export default function TextToVideoPage() {
                 <p className="text-xs text-aegis-slate">No prior jobs.</p>
               ) : (
                 <div className="space-y-3">
-                  {historyItems.map((job) => (
-                    <div
-                      key={job.job_id}
-                      className="flex items-center justify-between gap-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-xs text-aegis-cloud font-medium truncate">
-                          {(job.question as string) || job.job_id}
-                        </p>
-                        <p className="text-[10px] text-aegis-slate font-mono uppercase">
-                          {(job.domain as string) || "--"} &bull; {job.job_id}
-                        </p>
+                  {historyItems.map((job) => {
+                    const done = isSuccess(job.status);
+                    const failed = isFailure(job.status);
+                    return (
+                      <div
+                        key={job.job_id}
+                        onClick={() => {
+                          if (done) {
+                            setSelectedVideo(job as unknown as UIJob);
+                          } else if (!failed) {
+                            // Track active running job
+                            setTrackedJobId(job.job_id);
+                            setActiveJobs((prev) => {
+                              if (prev.some((j) => j.job_id === job.job_id)) return prev;
+                              return [job as unknown as UIJob, ...prev];
+                            });
+                          }
+                        }}
+                        className={`flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer ${
+                          done ? "hover:border-aegis-cyan/30" : ""
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs text-aegis-cloud font-medium truncate">
+                            {(job.question as string) || job.job_id}
+                          </p>
+                          <p className="text-[10px] text-aegis-slate font-mono uppercase">
+                            {(job.domain as string) || "--"} &bull; {job.job_id}
+                          </p>
+                        </div>
+                        <StatusBadge
+                          label={job.status}
+                          variant={
+                            done
+                              ? "online"
+                              : failed
+                              ? "offline"
+                              : "active"
+                          }
+                        />
                       </div>
-                      <StatusBadge
-                        label={job.status}
-                        variant={
-                          isSuccess(job.status)
-                            ? "online"
-                            : isFailure(job.status)
-                            ? "offline"
-                            : "active"
-                        }
-                      />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </GlassPanel>

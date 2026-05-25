@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError } from "./client";
+import { ApiError, setActiveSignal } from "./client";
 
 export interface AsyncState<T> {
   data: T | null;
@@ -15,7 +15,7 @@ export interface AsyncState<T> {
  * `deps` is treated like a useEffect dependency array.
  */
 export function useApi<T>(
-  fetcher: (signal: AbortSignal) => Promise<T>,
+  fetcher: () => Promise<T>,
   deps: ReadonlyArray<unknown> = [],
   options: { skip?: boolean } = {}
 ): AsyncState<T> {
@@ -36,8 +36,17 @@ export function useApi<T>(
     setLoading(true);
     setError(null);
 
-    fetcherRef
-      .current(controller.signal)
+    setActiveSignal(controller.signal);
+    let promise;
+    try {
+      promise = fetcherRef.current();
+    } catch (err) {
+      setActiveSignal(undefined);
+      throw err;
+    }
+    setActiveSignal(undefined);
+
+    promise
       .then((res) => {
         if (cancelled) return;
         setData(res);

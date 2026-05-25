@@ -1,5 +1,11 @@
 import type { ApiEnvelope } from "./types";
 
+let activeSignal: AbortSignal | undefined = undefined;
+
+export function setActiveSignal(signal: AbortSignal | undefined) {
+  activeSignal = signal;
+}
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -76,7 +82,7 @@ async function rawFetch(path: string, opts: RequestOpts = {}): Promise<Response>
     method: opts.method ?? "GET",
     headers,
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-    signal: opts.signal,
+    signal: opts.signal ?? activeSignal,
   });
 }
 
