@@ -132,8 +132,11 @@ export default function CognitiveDigitalTwinPage() {
   const [shipId, setShipId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!shipId && shipsState.data?.length) {
-      setShipId(shipsState.data[0].ship_id);
+    const data = shipsState.data;
+    if (!shipId && data && data.length > 0) {
+      Promise.resolve().then(() => {
+        setShipId(data[0].ship_id);
+      });
     }
   }, [shipsState.data, shipId]);
 

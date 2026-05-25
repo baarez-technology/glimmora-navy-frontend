@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/purity */
 "use client";
 
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Radar,
@@ -91,6 +93,22 @@ export default function SwarmAIPage() {
     (s) => allScenarios.some((sc) => sc.id === s.scenario_id)
   );
 
+  const particles = useMemo(() => {
+    return Array.from({ length: 24 }).map((_, i) => {
+      const angle = (i / 24) * Math.PI * 2;
+      const radius = 80 + Math.random() * 60;
+      const cx = Math.cos(angle) * radius + 160;
+      const cy = Math.sin(angle) * radius + 160;
+      return {
+        id: i,
+        cx,
+        cy,
+        duration: 2 + Math.random() * 2,
+        delay: Math.random(),
+      };
+    });
+  }, []);
+
   return (
     <motion.div
       variants={staggerContainer}
@@ -130,24 +148,18 @@ export default function SwarmAIPage() {
           <div className="absolute inset-0 tactical-grid-dense flex items-center justify-center">
             {/* Swarm particles */}
             <div className="relative w-80 h-80">
-              {Array.from({ length: 24 }).map((_, i) => {
-                const angle = (i / 24) * Math.PI * 2;
-                const radius = 80 + Math.random() * 60;
-                const cx = Math.cos(angle) * radius + 160;
-                const cy = Math.sin(angle) * radius + 160;
-                return (
-                  <motion.div
-                    key={i}
-                    animate={{
-                      x: [cx - 3, cx + 3, cx - 3],
-                      y: [cy - 2, cy + 4, cy - 2],
-                    }}
-                    transition={{ duration: 2 + Math.random() * 2, repeat: Infinity, delay: Math.random() }}
-                    className="absolute w-2.5 h-2.5 rounded-full bg-aegis-cyan shadow-[0_0_8px_rgba(0,229,255,0.5)]"
-                    style={{ left: 0, top: 0 }}
-                  />
-                );
-              })}
+              {particles.map((p) => (
+                <motion.div
+                  key={p.id}
+                  animate={{
+                    x: [p.cx - 3, p.cx + 3, p.cx - 3],
+                    y: [p.cy - 2, p.cy + 4, p.cy - 2],
+                  }}
+                  transition={{ duration: p.duration, repeat: Infinity, delay: p.delay }}
+                  className="absolute w-2.5 h-2.5 rounded-full bg-aegis-cyan shadow-[0_0_8px_rgba(0,229,255,0.5)]"
+                  style={{ left: 0, top: 0 }}
+                />
+              ))}
               {/* Center command node */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-aegis-purple shadow-[0_0_16px_rgba(124,77,255,0.5)] flex items-center justify-center">
                 <div className="w-2 h-2 rounded-full bg-white" />

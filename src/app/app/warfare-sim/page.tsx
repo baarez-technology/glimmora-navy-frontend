@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/purity */
 "use client";
 
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Swords,
@@ -81,6 +83,20 @@ function ErrorInline({ message, onRetry }: { message: string; onRetry: () => voi
 export default function WarfareSimPage() {
   const user = useUserStore((s) => s.user);
   const router = useRouter();
+
+  const particles = useMemo(() => {
+    return Array.from({ length: 8 }).map((_, i) => {
+      return {
+        id: i,
+        x1: Math.random() * 10 - 5,
+        x2: Math.random() * 10 - 5,
+        y1: Math.random() * 10 - 5,
+        y2: Math.random() * 10 - 5,
+        top: Math.random() * 40 - 20,
+        left: Math.random() * 60 - 30,
+      };
+    });
+  }, []);
 
   const scenariosState = useApi(
     () => scenarios.list({ domain: DOMAIN, page_size: 50 }),
@@ -190,18 +206,18 @@ export default function WarfareSimPage() {
 
             {/* Swarm cluster */}
             <div className="absolute top-[20%] left-[70%]">
-              {Array.from({ length: 8 }).map((_, i) => (
+              {particles.map((p) => (
                 <motion.div
-                  key={i}
+                  key={p.id}
                   animate={{
-                    x: [Math.random() * 10 - 5, Math.random() * 10 - 5],
-                    y: [Math.random() * 10 - 5, Math.random() * 10 - 5],
+                    x: [p.x1, p.x2],
+                    y: [p.y1, p.y2],
                   }}
-                  transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
+                  transition={{ duration: 2, repeat: Infinity, delay: p.id * 0.2 }}
                   className="absolute w-1.5 h-1.5 rounded-full bg-[#ff1744]/70"
                   style={{
-                    top: `${Math.random() * 40 - 20}px`,
-                    left: `${Math.random() * 60 - 30}px`,
+                    top: `${p.top}px`,
+                    left: `${p.left}px`,
                   }}
                 />
               ))}

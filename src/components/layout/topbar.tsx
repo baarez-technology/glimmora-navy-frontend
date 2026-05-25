@@ -35,7 +35,7 @@ export function TopBar() {
 
   const { data: notificationsData } = useApi(notifications.list, [user?.id]);
   const unreadCount = useMemo(() => {
-    return (notificationsData || []).filter((n: any) => !n.is_read).length;
+    return (notificationsData || []).filter((n) => !n.is_read).length;
   }, [notificationsData]);
 
   const breadcrumb = user

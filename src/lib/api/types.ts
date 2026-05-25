@@ -383,3 +383,15 @@ export interface SystemAuditEntry {
   result: string;
   overridden?: boolean;
 }
+
+// ---------------------------------------------------------------- Notifications
+export interface NotificationItem {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  body: string;
+  extra_data: Record<string, unknown>;
+  is_read: boolean;
+  created_at: string;
+}

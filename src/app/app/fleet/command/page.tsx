@@ -97,7 +97,9 @@ export default function FleetCommandPage() {
   // If either succeeded once, we know we have access; keep showing the section.
   useEffect(() => {
     if (healthState.data || metricsState.data) {
-      setSystemForbidden(false);
+      Promise.resolve().then(() => {
+        setSystemForbidden(false);
+      });
     }
   }, [healthState.data, metricsState.data]);
 

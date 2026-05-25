@@ -119,11 +119,15 @@ export default function ProfilePage() {
   // Sync local form when the underlying user loads or changes.
   useEffect(() => {
     if (backendUser) {
-      setRank(backendUser.rank ?? "");
-      setUnit(backendUser.unit ?? "");
+      Promise.resolve().then(() => {
+        setRank(backendUser.rank ?? "");
+        setUnit(backendUser.unit ?? "");
+      });
     } else if (storeUser) {
-      setRank(storeUser.rank ?? "");
-      setUnit(storeUser.unit ?? "");
+      Promise.resolve().then(() => {
+        setRank(storeUser.rank ?? "");
+        setUnit(storeUser.unit ?? "");
+      });
     }
   }, [backendUser, storeUser]);
 

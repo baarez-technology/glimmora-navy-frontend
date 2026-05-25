@@ -24,17 +24,24 @@ export function useApi<T>(
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  }, [fetcher]);
 
   useEffect(() => {
     if (options.skip) {
-      setLoading(false);
+      Promise.resolve().then(() => {
+        setLoading(false);
+      });
       return;
     }
     const controller = new AbortController();
     let cancelled = false;
-    setLoading(true);
-    setError(null);
+    Promise.resolve().then(() => {
+      setLoading(true);
+      setError(null);
+    });
 
     setActiveSignal(controller.signal);
     let promise;

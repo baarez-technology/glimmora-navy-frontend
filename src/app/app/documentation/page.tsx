@@ -14,7 +14,6 @@ import {
   X,
   ChevronRight,
   ChevronDown,
-  Info,
   Shield,
   Loader2,
   Sparkles,
@@ -24,13 +23,11 @@ import {
   Download,
   Bookmark,
   Share2,
-  FileText,
   Compass,
   Flame,
   Anchor,
   Cpu,
   History,
-  AlertTriangle,
   Radio,
   Clock,
   LayoutGrid
@@ -41,7 +38,7 @@ import { staggerContainer, fadeInUp } from "@/animations/variants";
 import { documentation, scenarios, sessions } from "@/lib/api/endpoints";
 import { useApi, useMutation } from "@/lib/api/hooks";
 import { useUserStore } from "@/stores/user-store";
-import type { DocumentationTopic } from "@/lib/api/types";
+import type { DocumentationTopic, TrainingSession } from "@/lib/api/types";
 
 // Helper function to parse inline markdown (bold **text** and italic *text*)
 function parseInlineMarkdown(text: string): React.ReactNode {
@@ -79,9 +76,7 @@ function parseInlineMarkdown(text: string): React.ReactNode {
 function RenderMarkdown({ text }: { text: string }) {
   if (!text) return null;
   const lines = text.split("\n");
-  let inList = false;
   let inCode = false;
-  let inTable = false;
   const listItems: string[] = [];
   const renderedElements: React.ReactNode[] = [];
   let tableHeaders: string[] = [];
@@ -97,7 +92,6 @@ function RenderMarkdown({ text }: { text: string }) {
         </ul>
       );
       listItems.length = 0;
-      inList = false;
     }
   };
 
@@ -131,7 +125,6 @@ function RenderMarkdown({ text }: { text: string }) {
       );
       tableHeaders = [];
       tableRows = [];
-      inTable = false;
     }
   };
 
@@ -146,7 +139,7 @@ function RenderMarkdown({ text }: { text: string }) {
         inCode = false;
       } else {
         inCode = true;
-        let codeLines = [];
+        const codeLines: string[] = [];
         let j = i + 1;
         while (j < lines.length && !lines[j].trim().startsWith("```")) {
           codeLines.push(lines[j]);
@@ -210,13 +203,11 @@ function RenderMarkdown({ text }: { text: string }) {
     // Lists
     else if (line.startsWith("- ") || line.startsWith("* ")) {
       flushTable(String(i));
-      inList = true;
       listItems.push(line.substring(2));
     }
     // Table parser
     else if (line.startsWith("|")) {
       flushList(String(i));
-      inTable = true;
       const cells = line.split("|").map(c => c.trim()).filter(c => c !== "");
       if (line.includes("---")) {
         // Divider row, skip
@@ -256,8 +247,7 @@ export default function DocumentationPage() {
   const user = useUserStore((s) => s.user);
   const isManageable = user?.role === "instructor" || user?.role === "admin";
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDomain, setSelectedDomain] = useState<string>("all");
+
   const [selectedTopic, setSelectedTopic] = useState<DocumentationTopic | null>(null);
   const [dashboardSearch, setDashboardSearch] = useState("");
 
@@ -393,7 +383,7 @@ export default function DocumentationPage() {
   }, [topicsData.data, getTopicProgressVal]);
 
   // Helper to extract a 0..100 score from a training session.score blob
-  const extractSessionScore = (s: any): number => {
+  const extractSessionScore = (s: Omit<TrainingSession, "score"> & { score?: Record<string, unknown> | number | null }): number => {
     if (!s || !s.score) return 85;
     if (typeof s.score === "number") return s.score;
     if (typeof s.score === "object") {
@@ -529,17 +519,7 @@ export default function DocumentationPage() {
     }
   }, [selectedTopic]);
 
-  // Filter topics
-  const filteredTopics = useMemo(() => {
-    const items = topicsData.data || [];
-    return items.filter((item) => {
-      const matchesSearch =
-        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesDomain = selectedDomain === "all" || item.domain === selectedDomain;
-      return matchesSearch && matchesDomain;
-    });
-  }, [topicsData.data, searchQuery, selectedDomain]);
+
 
   // Handle Command Execution Simulation
   const runSimulatorCommand = () => {
@@ -659,15 +639,7 @@ export default function DocumentationPage() {
     setFormExampleInteractive("");
   };
 
-  const domains = [
-    { value: "all", label: "All Topics" },
-    { value: "bridge", label: "Bridge Watch" },
-    { value: "cic", label: "CIC & Warfare" },
-    { value: "engineering", label: "Engineering" },
-    { value: "damage_control", label: "Damage Control" },
-    { value: "small_boats", label: "Small Boats" },
-    { value: "unmanned_systems", label: "Unmanned Systems" }
-  ];
+
 
   return (
     <motion.div

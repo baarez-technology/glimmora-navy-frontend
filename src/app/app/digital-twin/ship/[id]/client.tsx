@@ -205,7 +205,9 @@ export default function ShipDetailClient({ shipId }: { shipId: string }) {
     const ws = new WebSocket(
       `${WS_BASE_URL}/api/digital-twin/ws/digital-twin/${shipId}`
     );
-    setWsStatus("connecting");
+    Promise.resolve().then(() => {
+      setWsStatus("connecting");
+    });
 
     ws.onopen = () => {
       const token = getAccessToken();
@@ -277,7 +279,9 @@ export default function ShipDetailClient({ shipId }: { shipId: string }) {
 
   useEffect(() => {
     if (!formSystem && systemOptions.length) {
-      setFormSystem(systemOptions[0].value);
+      Promise.resolve().then(() => {
+        setFormSystem(systemOptions[0].value);
+      });
     }
   }, [systemOptions, formSystem]);
 

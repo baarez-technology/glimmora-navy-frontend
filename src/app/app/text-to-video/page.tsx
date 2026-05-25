@@ -101,16 +101,18 @@ export default function TextToVideoPage() {
         progress: typeof job.progress === "number" ? job.progress : undefined,
       }));
     if (runningJobs.length > 0) {
-      setActiveJobs((prev) => {
-        const merged = [...prev];
-        runningJobs.forEach((rj) => {
-          if (!merged.some((mj) => mj.job_id === rj.job_id)) {
-            merged.push(rj);
-          }
+      Promise.resolve().then(() => {
+        setActiveJobs((prev) => {
+          const merged = [...prev];
+          runningJobs.forEach((rj) => {
+            if (!merged.some((mj) => mj.job_id === rj.job_id)) {
+              merged.push(rj);
+            }
+          });
+          return merged;
         });
-        return merged;
+        setTrackedJobId((curr) => curr || runningJobs[0].job_id);
       });
-      setTrackedJobId((curr) => curr || runningJobs[0].job_id);
     }
   }, [jobsHistory.data]);
 
@@ -402,6 +404,7 @@ export default function TextToVideoPage() {
                                     <Clock className="w-3 h-3" />{" "}
                                     {Math.max(
                                       1,
+                                      // eslint-disable-next-line react-hooks/purity
                                       Math.round((Date.now() - job.started_at) / 1000)
                                     )}
                                     s

@@ -18,6 +18,7 @@ import type {
   LoginResponse,
   Paginated,
   PendingCertification,
+  NotificationItem,
   PredictiveAnalytics,
   RefreshResponse,
   Scenario,
@@ -387,7 +388,7 @@ export const system = {
 
 // ============================================================ NOTIFICATIONS
 export const notifications = {
-  list: () => api.get<any[]>("/api/notifications"),
+  list: () => api.get<NotificationItem[]>("/api/notifications"),
   read: (notification_id: UUID) =>
     api.patch<boolean>(`/api/notifications/${notification_id}/read`),
   readAll: () => api.post<boolean>("/api/notifications/read-all"),
